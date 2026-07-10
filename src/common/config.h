@@ -3,6 +3,12 @@
 
 namespace gomoku_config {
 
+constexpr int kMainWindowWidth = 1200;
+constexpr int kMainWindowHeight = 824;
+constexpr int kMainWindowMinWidth = 900;
+constexpr int kMainWindowMinHeight = 620;
+constexpr int kHomePageIndex = 0;
+constexpr int kGamePageIndex = 1;
 constexpr int kBoardSize = 15;
 constexpr int kDefaultCellSize = 40;
 constexpr int kDefaultMargin = 24;

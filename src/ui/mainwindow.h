@@ -9,6 +9,9 @@ class MainWindow;
 }
 QT_END_NAMESPACE
 
+class ChessBoardWidget;
+class GameController;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -18,6 +21,15 @@ public:
     ~MainWindow() override;
 
 private:
+    void setupHomePage();
+    void setupGamePage();
+    void refreshGameInfo();
+    void syncBoardFromController();
+    void showGameOverPrompt(const QString &title, const QString &message);
+
     Ui::MainWindow *ui = nullptr;
+    ChessBoardWidget *boardWidget_ = nullptr;
+    GameController *controller_ = nullptr;
 };
+
 #endif // MAINWINDOW_H

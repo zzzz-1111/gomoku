@@ -1,12 +1,18 @@
 #pragma once
 
-#include <QRect>
 #include <QPoint>
+#include <QRect>
 #include <QSize>
+#include <QPixmap>
 #include <QVector>
 #include <QWidget>
 
 #include "src/common/gomoku_types.h"
+
+class QEvent;
+class QMouseEvent;
+class QPaintEvent;
+class QResizeEvent;
 
 class ChessBoardWidget : public QWidget
 {
@@ -48,4 +54,7 @@ private:
     BoardPosition suggestedMove_;
     BoardPosition hoverCell_;
     bool hasHoverCell_ = false;
+    QPixmap boardTexture_;
+    QPixmap blackStone_;
+    QPixmap whiteStone_;
 };
