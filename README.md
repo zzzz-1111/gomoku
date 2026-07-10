@@ -201,19 +201,19 @@
 
 #### AI难度
 
-| 难度 | 实现方式 |
-|---|---|
-| 简单 | 在高评分候选点中随机选择 |
-| 普通 | 启发式评分并搜索较少层数 |
+| 难度 | 实现方式                     |
+| ---- | ---------------------------- |
+| 简单 | 在高评分候选点中随机选择     |
+| 普通 | 启发式评分并搜索较少层数     |
 | 困难 | Alpha-Beta剪枝并增加搜索深度 |
 
 #### AI性格
 
-| 性格 | 行为特点 |
-|---|---|
-| 进攻型 | 更重视形成活三、活四 |
+| 性格   | 行为特点               |
+| ------ | ---------------------- |
+| 进攻型 | 更重视形成活三、活四   |
 | 防守型 | 更重视阻止玩家形成威胁 |
-| 平衡型 | 综合考虑进攻和防守 |
+| 平衡型 | 综合考虑进攻和防守     |
 
 AI不连接外部大模型，也不依赖云端接口，全部在本机计算。
 
@@ -285,21 +285,21 @@ AI不连接外部大模型，也不依赖云端接口，全部在本机计算。
 
 系统可以使用 JSON 或自定义文本协议传输消息。
 
-| 消息类型 | 作用 |
-|---|---|
-| LOGIN | 玩家进入服务器 |
-| CREATE_ROOM | 创建房间 |
-| JOIN_ROOM | 加入房间 |
-| READY | 玩家准备 |
-| GAME_START | 开始游戏 |
-| MOVE | 提交落子 |
-| MOVE_RESULT | 返回落子结果 |
-| CHAT | 发送聊天消息 |
-| UNDO_REQUEST | 请求悔棋 |
-| UNDO_RESPONSE | 同意或拒绝悔棋 |
-| RESTART_REQUEST | 请求重新开始 |
-| GAME_OVER | 游戏结束 |
-| DISCONNECT | 玩家断开连接 |
+| 消息类型        | 作用           |
+| --------------- | -------------- |
+| LOGIN           | 玩家进入服务器 |
+| CREATE_ROOM     | 创建房间       |
+| JOIN_ROOM       | 加入房间       |
+| READY           | 玩家准备       |
+| GAME_START      | 开始游戏       |
+| MOVE            | 提交落子       |
+| MOVE_RESULT     | 返回落子结果   |
+| CHAT            | 发送聊天消息   |
+| UNDO_REQUEST    | 请求悔棋       |
+| UNDO_RESPONSE   | 同意或拒绝悔棋 |
+| RESTART_REQUEST | 请求重新开始   |
+| GAME_OVER       | 游戏结束       |
+| DISCONNECT      | 玩家断开连接   |
 
 示例：
 
@@ -470,40 +470,40 @@ AI不连接外部大模型，也不依赖云端接口，全部在本机计算。
 
 ### 6.1 玩家表 User
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| id | INTEGER | 玩家编号 |
-| name | TEXT | 玩家昵称 |
-| totalGames | INTEGER | 总对局数 |
-| wins | INTEGER | 胜场 |
-| losses | INTEGER | 负场 |
-| draws | INTEGER | 和棋 |
-| createdAt | DATETIME | 创建时间 |
+| 字段       | 类型     | 说明     |
+| ---------- | -------- | -------- |
+| id         | INTEGER  | 玩家编号 |
+| name       | TEXT     | 玩家昵称 |
+| totalGames | INTEGER  | 总对局数 |
+| wins       | INTEGER  | 胜场     |
+| losses     | INTEGER  | 负场     |
+| draws      | INTEGER  | 和棋     |
+| createdAt  | DATETIME | 创建时间 |
 
 ### 6.2 对局表 GameRecord
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| id | INTEGER | 对局编号 |
-| mode | TEXT | 游戏模式 |
-| blackPlayer | TEXT | 黑方 |
-| whitePlayer | TEXT | 白方 |
-| winner | TEXT | 获胜方 |
-| totalMoves | INTEGER | 总步数 |
-| startTime | DATETIME | 开始时间 |
-| endTime | DATETIME | 结束时间 |
+| 字段        | 类型     | 说明     |
+| ----------- | -------- | -------- |
+| id          | INTEGER  | 对局编号 |
+| mode        | TEXT     | 游戏模式 |
+| blackPlayer | TEXT     | 黑方     |
+| whitePlayer | TEXT     | 白方     |
+| winner      | TEXT     | 获胜方   |
+| totalMoves  | INTEGER  | 总步数   |
+| startTime   | DATETIME | 开始时间 |
+| endTime     | DATETIME | 结束时间 |
 
 ### 6.3 落子表 MoveRecord
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| id | INTEGER | 记录编号 |
-| gameId | INTEGER | 所属对局 |
-| stepNumber | INTEGER | 步数 |
-| playerColor | INTEGER | 棋子颜色 |
-| x | INTEGER | 横坐标 |
-| y | INTEGER | 纵坐标 |
-| score | INTEGER | 落子后局面评分 |
+| 字段        | 类型    | 说明           |
+| ----------- | ------- | -------------- |
+| id          | INTEGER | 记录编号       |
+| gameId      | INTEGER | 所属对局       |
+| stepNumber  | INTEGER | 步数           |
+| playerColor | INTEGER | 棋子颜色       |
+| x           | INTEGER | 横坐标         |
+| y           | INTEGER | 纵坐标         |
+| score       | INTEGER | 落子后局面评分 |
 
 ---
 
@@ -581,106 +581,7 @@ AI不连接外部大模型，也不依赖云端接口，全部在本机计算。
 
 ---
 
-## 九、五天开发范围
-
-### 第一天：游戏基础
-
-- 建立 Qt 工程；
-- 设计主界面和对局界面；
-- 绘制棋盘与棋子；
-- 实现鼠标落子；
-- 实现回合切换和胜负判断。
-
-### 第二天：局域网联机
-
-- 创建 TCP 服务器；
-- 创建客户端连接；
-- 定义消息格式；
-- 实现双方落子同步；
-- 实现开始游戏和结束游戏消息。
-
-### 第三天：AI模块
-
-- 实现棋型评分；
-- 生成候选落点；
-- 实现简单搜索；
-- 完成人机对战；
-- 加入难度或AI性格选项。
-
-### 第四天：记录与复盘
-
-- 建立 SQLite 数据库；
-- 保存对局和落子记录；
-- 实现历史记录列表；
-- 实现棋谱单步和自动回放；
-- 加入局面评分记录。
-
-### 第五天：完善与答辩
-
-- 增加AI提示或关键步骤分析；
-- 美化界面；
-- 测试异常情况；
-- 准备架构图和流程图；
-- 准备答辩演示数据。
-
----
-
-## 十、非功能需求
-
-### 性能要求
-
-- 玩家落子后，局域网同步延迟应较低；
-- 普通难度 AI 应在1秒左右完成落子；
-- AI计算期间界面不能明显卡死；
-- 棋谱回放应保持流畅。
-
-### 稳定性要求
-
-- 重复点击同一位置不能落子；
-- 断开连接后应显示提示；
-- 无效网络消息不能导致程序崩溃；
-- 数据库保存失败时应提示用户；
-- 对局结束后不能继续落子。
-
-### 可维护性要求
-
-系统应采用模块化设计，避免将所有功能放进 `MainWindow`。
-
-建议核心类：
-
-```text
-MainWindow
-ChessBoardWidget
-GameController
-GameRule
-NetworkManager
-GameServer
-GameRoom
-AIEngine
-BoardEvaluator
-RecordManager
-DatabaseManager
-```
-
----
-
-## 十一、答辩演示流程
-
-1. 启动系统并介绍三种游戏模式；
-2. 演示本地棋盘落子和胜负判断；
-3. 打开服务器和两个客户端；
-4. 演示局域网实时同步落子；
-5. 切换到人机模式；
-6. 展示AI自动落子和推荐位置；
-7. 完成一场短对局；
-8. 打开历史记录；
-9. 演示棋谱自动回放；
-10. 展示局势评分变化或关键步骤分析；
-11. 最后介绍客户端、服务器、AI和数据库架构。
-
----
-
-## 十二、项目亮点
+## 九、项目亮点
 
 本项目的主要亮点不是单纯实现五子棋，而是将多个模块组合成一个完整系统：
 
@@ -696,3 +597,13 @@ DatabaseManager
 项目最终可命名为：
 
 > **基于Qt的局域网智能五子棋竞技与棋局分析系统**
+
+---
+
+## 十、模块接口文档
+
+为了便于后续按模块开发，接口说明单独整理在：
+
+- [doc/module_interfaces.md](doc/module_interfaces.md)
+
+这份文档只描述模块边界、类职责、方法接口和依赖关系，不重复展开业务需求。后续实现时，先对照这份接口文档，再逐个填充对应的 `.cpp` 文件。

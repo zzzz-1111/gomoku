@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QSqlDatabase>
+#include <QtGlobal>
 #include <QString>
 
 class DatabaseManager

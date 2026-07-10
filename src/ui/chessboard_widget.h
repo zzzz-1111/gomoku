@@ -1,6 +1,8 @@
 #pragma once
 
+#include <QRect>
 #include <QPoint>
+#include <QSize>
 #include <QVector>
 #include <QWidget>
 
