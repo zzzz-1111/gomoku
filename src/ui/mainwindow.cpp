@@ -24,6 +24,7 @@
 #include <QStandardPaths>
 #include <QPixmap>
 #include <QPushButton>
+#include <QShortcut>
 #include <QLabel>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -38,6 +39,7 @@
 #include "src/network/network_manager.h"
 #include "src/network/protocol.h"
 #include "src/ui/chessboard_widget.h"
+#include "src/ui/match_intro_overlay.h"
 
 namespace {
 
@@ -199,6 +201,11 @@ QString loadOrPromptLocalAccountName(QWidget *parent)
 QString defaultAvatarResourcePath()
 {
     return QStringLiteral(":/assets/profile/default_avatar.png");
+}
+
+QString aiAvatarResourcePath()
+{
+    return QStringLiteral(":/assets/profile/ai_avatar.png");
 }
 
 QString customAvatarStoragePath()
@@ -476,6 +483,11 @@ MainWindow::MainWindow(QWidget *parent)
     networkManager_->setAvatarData(encodeAvatarForNetwork(localAvatarPath_));
     gameServer_->setHostAvatarData(encodeAvatarForNetwork(localAvatarPath_));
 
+    auto *previewShortcut = new QShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+P")), this);
+    connect(previewShortcut, &QShortcut::activated, this, [this]() {
+        playOnlineMatchIntroPreview();
+    });
+
     ui->homePage->setStyleSheet(
         "QWidget#homePage {"
         "border-image: url(:/assets/home/home_hero_bg.png) 0 0 0 0 stretch stretch;"
@@ -637,6 +649,9 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(networkManager_, &NetworkManager::disconnectedFromServer, this, [this]() {
         setOnlineGameActive(false);
+        if (matchIntroOverlay_ != nullptr) {
+            matchIntroOverlay_->close();
+        }
         remoteAccountName_.clear();
         remoteAvatarBytes_.clear();
         ui->networkStatusLabel->setText(QStringLiteral("状态：已断开连接"));
@@ -673,6 +688,7 @@ MainWindow::MainWindow(QWidget *parent)
             controller_->setCurrentPlayer(firstPlayer);
             ui->networkStatusLabel->setText(QStringLiteral("状态：联机对局已开始"));
             statusBar()->showMessage(QStringLiteral("联机对局已开始"), 2000);
+            playOnlineMatchIntro();
             return;
         }
 
@@ -730,6 +746,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(gameServer_, &GameServer::serverStopped, this, [this]() {
         hostPlayerJoined_ = false;
         setOnlineGameActive(false);
+        if (matchIntroOverlay_ != nullptr) {
+            matchIntroOverlay_->close();
+        }
         remoteAccountName_.clear();
         remoteAvatarBytes_.clear();
         ui->hostInfoLabel->setText(QStringLiteral("账号：%1").arg(localAccountName_));
@@ -754,10 +773,14 @@ MainWindow::MainWindow(QWidget *parent)
         updateBoardMoveInput();
         ui->networkStatusLabel->setText(QStringLiteral("状态：%1 已加入，对局开始").arg(playerName));
         statusBar()->showMessage(QStringLiteral("%1 已加入，双方可以开始落子").arg(playerName), 2500);
+        playOnlineMatchIntro();
     });
     connect(gameServer_, &GameServer::clientDisconnected, this, [this](const QString &playerName) {
         // 对手离开后立即锁住主机输入。
         hostPlayerJoined_ = false;
+        if (matchIntroOverlay_ != nullptr) {
+            matchIntroOverlay_->close();
+        }
         remoteAccountName_.clear();
         remoteAvatarBytes_.clear();
         prepareOnlineHostWaiting();
@@ -953,6 +976,7 @@ void MainWindow::setupHomePage()
             return;
         }
         startGame(GameMode::HumanVsAI, humanSide, aiDifficulty);
+        playAiMatchIntro();
     });
 
     connect(ui->networkButton, &QPushButton::clicked, this, [this]() {
@@ -988,6 +1012,9 @@ void MainWindow::setupHomePage()
 void MainWindow::setupGamePage()
 {
     connect(ui->backButton, &QPushButton::clicked, this, [this]() {
+        if (matchIntroOverlay_ != nullptr) {
+            matchIntroOverlay_->close();
+        }
         ui->stackedWidget->setCurrentWidget(ui->homePage);
         statusBar()->showMessage(QStringLiteral("返回首页"), 2000);
     });
@@ -1223,6 +1250,107 @@ void MainWindow::refreshOnlineIdentityLabels()
     } else {
         ui->hostInfoLabel->setText(QStringLiteral("账号：%1").arg(localAccountName_));
     }
+}
+
+void MainWindow::playMatchIntro(const IntroPlayerInfo &leftPlayer,
+                                const IntroPlayerInfo &rightPlayer,
+                                std::function<void()> finished)
+{
+    if (ui == nullptr || boardWidget_ == nullptr) {
+        return;
+    }
+
+    if (matchIntroOverlay_ != nullptr) {
+        matchIntroOverlay_->close();
+        matchIntroOverlay_ = nullptr;
+    }
+
+    boardWidget_->setMoveInputEnabled(false);
+    matchIntroOverlay_ = new MatchIntroOverlay(ui->centralwidget);
+    matchIntroOverlay_->setGeometry(ui->centralwidget->rect());
+    connect(matchIntroOverlay_, &QObject::destroyed, this, [this]() {
+        matchIntroOverlay_ = nullptr;
+    });
+    matchIntroOverlay_->play(leftPlayer, rightPlayer, [this, finished = std::move(finished)]() mutable {
+        updateBoardMoveInput();
+        if (finished) {
+            finished();
+        }
+    });
+}
+
+void MainWindow::playOnlineMatchIntro()
+{
+    const QString avatarPath = QFileInfo::exists(localAvatarPath_)
+        ? localAvatarPath_
+        : defaultAvatarResourcePath();
+
+    IntroPlayerInfo localPlayer;
+    localPlayer.name = localAccountName_.isEmpty() ? QStringLiteral("Player") : localAccountName_;
+    localPlayer.sideText = sideName(humanSide_);
+    localPlayer.avatar = loadAvatarPixmap(avatarPath, QSize(128, 128));
+
+    const PlayerSide remoteSide = humanSide_ == PlayerSide::Black ? PlayerSide::White : PlayerSide::Black;
+    IntroPlayerInfo remotePlayer;
+    remotePlayer.name = remoteAccountName_.isEmpty() ? QStringLiteral("对方玩家") : remoteAccountName_;
+    remotePlayer.sideText = sideName(remoteSide);
+    remotePlayer.avatar = loadAvatarPixmapFromBytes(remoteAvatarBytes_, QSize(128, 128));
+
+    const bool localIsBlack = humanSide_ == PlayerSide::Black;
+    const IntroPlayerInfo &leftPlayer = localIsBlack ? localPlayer : remotePlayer;
+    const IntroPlayerInfo &rightPlayer = localIsBlack ? remotePlayer : localPlayer;
+
+    playMatchIntro(leftPlayer, rightPlayer);
+}
+
+void MainWindow::playAiMatchIntro()
+{
+    const QString avatarPath = QFileInfo::exists(localAvatarPath_)
+        ? localAvatarPath_
+        : defaultAvatarResourcePath();
+
+    IntroPlayerInfo humanPlayer;
+    humanPlayer.name = localAccountName_.isEmpty() ? QStringLiteral("玩家") : localAccountName_;
+    humanPlayer.sideText = sideName(humanSide_);
+    humanPlayer.avatar = loadAvatarPixmap(avatarPath, QSize(128, 128));
+
+    const PlayerSide aiSide = humanSide_ == PlayerSide::Black ? PlayerSide::White : PlayerSide::Black;
+    IntroPlayerInfo aiPlayer;
+    aiPlayer.name = QStringLiteral("AI");
+    aiPlayer.sideText = sideName(aiSide);
+    aiPlayer.avatar = loadAvatarPixmap(aiAvatarResourcePath(), QSize(128, 128));
+
+    const bool humanIsBlack = humanSide_ == PlayerSide::Black;
+    const IntroPlayerInfo &leftPlayer = humanIsBlack ? humanPlayer : aiPlayer;
+    const IntroPlayerInfo &rightPlayer = humanIsBlack ? aiPlayer : humanPlayer;
+
+    playMatchIntro(leftPlayer, rightPlayer);
+}
+
+void MainWindow::playOnlineMatchIntroPreview()
+{
+    const QString avatarPath = QFileInfo::exists(localAvatarPath_)
+        ? localAvatarPath_
+        : defaultAvatarResourcePath();
+
+    IntroPlayerInfo localPlayer;
+    localPlayer.name = localAccountName_.isEmpty() ? QStringLiteral("预览玩家") : localAccountName_;
+    localPlayer.sideText = sideName(humanSide_);
+    localPlayer.avatar = loadAvatarPixmap(avatarPath, QSize(128, 128));
+
+    IntroPlayerInfo remotePlayer;
+    remotePlayer.name = QStringLiteral("预览对手");
+    remotePlayer.sideText = sideName(humanSide_ == PlayerSide::Black ? PlayerSide::White : PlayerSide::Black);
+    remotePlayer.avatar = loadAvatarPixmap(
+        humanSide_ == PlayerSide::Black ? QStringLiteral(":/assets/profile/white.png")
+                                        : QStringLiteral(":/assets/profile/black.png"),
+        QSize(128, 128));
+
+    const bool localIsBlack = humanSide_ == PlayerSide::Black;
+    const IntroPlayerInfo &leftPlayer = localIsBlack ? localPlayer : remotePlayer;
+    const IntroPlayerInfo &rightPlayer = localIsBlack ? remotePlayer : localPlayer;
+
+    playMatchIntro(leftPlayer, rightPlayer);
 }
 
 void MainWindow::refreshDiscoveredRooms()

@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QByteArray>
 #include <QString>
+#include <functional>
 
 #include "src/common/gomoku_types.h"
 
@@ -16,8 +17,10 @@ QT_END_NAMESPACE
 class ChessBoardWidget;
 class GameController;
 class GameServer;
+class MatchIntroOverlay;
 class NetworkManager;
 class QTcpSocket;
+struct IntroPlayerInfo;
 
 class MainWindow : public QMainWindow
 {
@@ -42,6 +45,12 @@ private:
     void refreshDiscoveredRooms();
     void syncBoardFromController();
     void refreshOnlineIdentityLabels();
+    void playMatchIntro(const IntroPlayerInfo &leftPlayer,
+                        const IntroPlayerInfo &rightPlayer,
+                        std::function<void()> finished = {});
+    void playAiMatchIntro();
+    void playOnlineMatchIntro();
+    void playOnlineMatchIntroPreview();
     void showGameOverPrompt(const QString &title, const QString &message);
     void showPendingOnlineHostGameOverPrompt();
     QString modeText(GameMode mode) const;
@@ -52,6 +61,7 @@ private:
     GameController *controller_ = nullptr;
     NetworkManager *networkManager_ = nullptr;
     GameServer *gameServer_ = nullptr;
+    MatchIntroOverlay *matchIntroOverlay_ = nullptr;
     GameMode currentMode_ = GameMode::LocalTwoPlayer;
     PlayerSide humanSide_ = PlayerSide::Black;
     QString localAccountName_;

@@ -35,6 +35,8 @@ set(PROJECT_SOURCES
         src/network/network_manager.h
         src/ui/chessboard_widget.cpp
         src/ui/chessboard_widget.h
+        src/ui/match_intro_overlay.cpp
+        src/ui/match_intro_overlay.h
         src/ui/mainwindow.cpp
         src/ui/mainwindow.h
         src/ui/mainwindow.ui
