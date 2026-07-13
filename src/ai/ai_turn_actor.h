@@ -3,6 +3,7 @@
 #include "src/core/turn_actor.h"
 
 class AIEngine;
+class ITurnContext;
 
 class AiTurnActor final : public ITurnActor
 {
@@ -11,7 +12,7 @@ public:
     ~AiTurnActor() override;
 
     bool isAutomatic() const override;
-    void onTurn(GameController &controller, const GameStateSnapshot &state, PieceColor side) override;
+    void onTurn(ITurnContext &context, const GameStateSnapshot &state, PieceColor side) override;
 
     void setDifficulty(AIDifficulty difficulty);
     void setSearchDepth(int depth);

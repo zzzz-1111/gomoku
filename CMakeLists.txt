@@ -22,6 +22,7 @@ set(PROJECT_SOURCES
         src/core/game_rule.cpp
         src/core/game_rule.h
         src/core/game_state.h
+        src/core/turn_context.h
         src/core/turn_actor.h
         src/core/human_turn_actor.h
         src/ui/chessboard_widget.cpp

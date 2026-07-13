@@ -1,15 +1,17 @@
 #pragma once
 
 #include <QObject>
+#include <QtGlobal>
 #include <QString>
 #include <QVector>
 #include <memory>
 
 #include "src/common/gomoku_types.h"
 #include "src/core/game_state.h"
+#include "src/core/turn_context.h"
 #include "src/core/turn_actor.h"
 
-class GameController : public QObject
+class GameController : public QObject, public ITurnContext
 {
     Q_OBJECT
 
@@ -30,14 +32,15 @@ public:
     void clearTurnActors();
 
     void setCurrentPlayer(PieceColor color);
-    PieceColor currentPlayer() const;
+    PieceColor currentPlayer() const override;
 
     const QVector<QVector<PieceColor>> &board() const;
     QVector<MoveInfo> moveHistory() const;
     GameStateSnapshot snapshot() const;
+    quint64 stateRevision() const override;
 
     bool canPlaceAt(int x, int y) const;
-    bool placeStone(int x, int y);
+    bool placeStone(int x, int y) override;
 
 signals:
     void boardChanged();
@@ -63,4 +66,5 @@ private:
     QVector<MoveInfo> moveHistory_;
     std::unique_ptr<ITurnActor> blackActor_;
     std::unique_ptr<ITurnActor> whiteActor_;
+    quint64 revision_ = 0;
 };

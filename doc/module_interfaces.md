@@ -58,7 +58,6 @@ src/data
 - `gomoku_config::kDefaultCellSize`
 - `gomoku_config::kDefaultMargin`
 - `gomoku_config::kDefaultPort`
-- `gomoku_config::kMaxChatLength`
 - `gomoku_config::kDefaultReplayDelayMs`
 
 约定：
@@ -197,7 +196,29 @@ src/data
 - 规则函数只接收棋盘状态，不持有状态
 - `winnerAt` 仅根据最后一步或指定点判断胜者
 
-### 4.2 `GameController`
+### 4.2 `ITurnContext`
+
+文件：
+
+- `src/core/turn_context.h`
+
+职责：
+
+- 提供回合执行所需的最小能力集
+- 让 AI 和其他自动回合模块只依赖抽象接口，而不是直接依赖 `GameController`
+
+当前接口：
+
+- `quint64 stateRevision() const`
+- `PieceColor currentPlayer() const`
+- `bool placeStone(int x, int y)`
+
+约定：
+
+- 这个接口只表达“当前回合需要什么”
+- 如果以后换控制器、换网络同步或换回合调度方式，只要继续满足接口即可
+
+### 4.3 `GameController`
 
 文件：
 
@@ -310,6 +331,7 @@ src/data
 - AI 不依赖云端接口
 - AI 的输出是一个明确的落点和评分
 - UI 层可以把推荐点显示出来，但不能代替控制器直接写盘
+- AI 通过 `ITurnContext` 读取回合状态并提交落子，不直接绑定具体控制器类型
 
 ## 6. `src/network`
 

@@ -1,7 +1,7 @@
 #include "ai_turn_actor.h"
 
 #include "ai_engine.h"
-#include "src/core/game_controller.h"
+#include "src/core/turn_context.h"
 
 struct AiTurnActor::Impl
 {
@@ -23,9 +23,16 @@ bool AiTurnActor::isAutomatic() const
     return true;
 }
 
-void AiTurnActor::onTurn(GameController &controller, const GameStateSnapshot &state, PieceColor side)
+void AiTurnActor::onTurn(ITurnContext &context, const GameStateSnapshot &state, PieceColor side)
 {
     if (state.gameOver) {
+        return;
+    }
+
+    if (context.stateRevision() != state.revision) {
+        return;
+    }
+    if (context.currentPlayer() != side) {
         return;
     }
 
@@ -33,8 +40,14 @@ void AiTurnActor::onTurn(GameController &controller, const GameStateSnapshot &st
     if (!move.position.isValid()) {
         return;
     }
+    if (context.stateRevision() != state.revision) {
+        return;
+    }
+    if (context.currentPlayer() != side) {
+        return;
+    }
 
-    controller.placeStone(move.position.x, move.position.y);
+    context.placeStone(move.position.x, move.position.y);
 }
 
 void AiTurnActor::setDifficulty(AIDifficulty difficulty)

@@ -10,7 +10,7 @@ public:
         return false;
     }
 
-    void onTurn(GameController &, const GameStateSnapshot &, PieceColor) override
+    void onTurn(ITurnContext &, const GameStateSnapshot &, PieceColor) override
     {
     }
 };

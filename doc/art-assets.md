@@ -39,7 +39,6 @@
 |---|---|---|---|---|---|---|
 | 空状态插图 | 无历史记录 / 未连接 / 等待对手 | 提升页面完整度 | PNG、SVG | 512x512 | 低 | `empty state illustration`, `waiting illustration` |
 | 徽章图标 | 胜利、连胜、积分、段位 | 战绩页展示 | SVG、PNG | 32x32、64x64 | 低 | `badge icon`, `trophy icon`, `medal icon` |
-| 聊天图标 | 消息、表情、发送 | 联机聊天区 | SVG | 24x24 | 低 | `chat icon`, `send icon`, `message icon` |
 | 播放控制图标 | 播放、暂停、快进、上一手、下一手 | 回放页 | SVG | 24x24 | 低 | `play icon`, `pause icon`, `forward icon`, `rewind icon` |
 | 胜负特效 | 五连胜利特效、轻微粒子 | 对局结束动画 | PNG、Lottie 也可 | 不固定 | 低 | `victory effect`, `confetti`, `shine effect` |
 
@@ -138,7 +137,6 @@ res/
     ├── profile/
     ├── empty/
     ├── badges/
-    ├── chat/
     └── replay/
 ```
 
@@ -191,16 +189,13 @@ res/
 | `badge_streak.svg` | `res/assets/badges/badge_streak.svg` | 连胜徽章 | SVG | 战绩页使用 |
 | `badge_rank.svg` | `res/assets/badges/badge_rank.svg` | 段位徽章 | SVG | 战绩页使用 |
 
-### 12.5 联机和聊天文件
+### 12.5 联机文件
 
 | 文件名 | 建议路径 | 用途 | 格式 | 备注 |
 |---|---|---|---|---|
 | `icon_server.svg` | `res/assets/icons/icon_server.svg` | 创建服务器 / 主机状态 | SVG | 联机页 |
 | `icon_room.svg` | `res/assets/icons/icon_room.svg` | 房间状态 | SVG | 联机页 |
 | `icon_user.svg` | `res/assets/icons/icon_user.svg` | 玩家头像 / 用户信息 | SVG | 联机页 |
-| `icon_chat.svg` | `res/assets/chat/icon_chat.svg` | 聊天消息 | SVG | 联机页 |
-| `icon_send.svg` | `res/assets/chat/icon_send.svg` | 发送消息 | SVG | 联机页 |
-| `icon_emoji.svg` | `res/assets/chat/icon_emoji.svg` | 表情按钮 | SVG | 联机页，可选 |
 
 ### 12.6 回放文件
 
@@ -273,9 +268,6 @@ res/
 | `icon_server.svg` | [Lucide](https://lucide.dev/icons)、[Font Awesome](https://fontawesome.com/icons)、[Material Symbols](https://fonts.google.com/icons)、[iconfont](https://www.iconfont.cn/) | 服务器、主机、网络节点图标 |
 | `icon_room.svg` | [Lucide](https://lucide.dev/icons)、[Font Awesome](https://fontawesome.com/icons)、[Material Symbols](https://fonts.google.com/icons)、[iconfont](https://www.iconfont.cn/) | 房间、门牌、卡片类图标 |
 | `icon_user.svg` | [Lucide](https://lucide.dev/icons)、[Font Awesome](https://fontawesome.com/icons)、[Material Symbols](https://fonts.google.com/icons)、[iconfont](https://www.iconfont.cn/) | 用户、头像、个人中心图标 |
-| `icon_chat.svg` | [Lucide](https://lucide.dev/icons)、[Font Awesome](https://fontawesome.com/icons)、[Material Symbols](https://fonts.google.com/icons)、[iconfont](https://www.iconfont.cn/) | 聊天气泡、消息图标 |
-| `icon_send.svg` | [Lucide](https://lucide.dev/icons)、[Font Awesome](https://fontawesome.com/icons)、[Material Symbols](https://fonts.google.com/icons)、[iconfont](https://www.iconfont.cn/) | 发送箭头、纸飞机图标 |
-| `icon_emoji.svg` | [Lucide](https://lucide.dev/icons)、[Font Awesome](https://fontawesome.com/icons)、[Material Symbols](https://fonts.google.com/icons)、[iconfont](https://www.iconfont.cn/) | 表情、笑脸图标 |
 | `icon_replay_play.svg` | [Lucide](https://lucide.dev/icons)、[Font Awesome](https://fontawesome.com/icons)、[Material Symbols](https://fonts.google.com/icons)、[iconfont](https://www.iconfont.cn/) | 播放按钮图标 |
 | `icon_replay_pause.svg` | [Lucide](https://lucide.dev/icons)、[Font Awesome](https://fontawesome.com/icons)、[Material Symbols](https://fonts.google.com/icons)、[iconfont](https://www.iconfont.cn/) | 暂停按钮图标 |
 | `icon_replay_prev.svg` | [Lucide](https://lucide.dev/icons)、[Font Awesome](https://fontawesome.com/icons)、[Material Symbols](https://fonts.google.com/icons)、[iconfont](https://www.iconfont.cn/) | 上一步、后退图标 |

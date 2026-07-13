@@ -1,8 +1,6 @@
 #include "game_controller.h"
 #include "game_rule.h"
 
-#include <QTimer>
-
 GameController::GameController(QObject *parent)
     : QObject(parent)
 {
@@ -11,6 +9,7 @@ GameController::GameController(QObject *parent)
 
 void GameController::resetGame()
 {
+    ++revision_;
     board_.clear();
     board_.resize(boardSize_);
     for (int y = 0; y < boardSize_; ++y) {
@@ -116,9 +115,15 @@ GameStateSnapshot GameController::snapshot() const
     state.humanSide = humanSide_;
     state.currentPlayer = currentPlayer_;
     state.gameOver = gameOver_;
+    state.revision = revision_;
     state.board = board_;
     state.moveHistory = moveHistory_;
     return state;
+}
+
+quint64 GameController::stateRevision() const
+{
+    return revision_;
 }
 
 bool GameController::canPlaceAt(int x, int y) const
@@ -207,16 +212,14 @@ void GameController::requestCurrentTurnAction()
     }
 
     const PieceColor side = currentPlayer_;
-    QTimer::singleShot(0, this, [this, side]() {
-        if (gameOver_ || currentPlayer_ != side) {
-            return;
-        }
+    if (gameOver_ || currentPlayer_ != side) {
+        return;
+    }
 
-        ITurnActor *actorNow = turnActorFor(side);
-        if (actorNow == nullptr || !actorNow->isAutomatic()) {
-            return;
-        }
+    ITurnActor *actorNow = turnActorFor(side);
+    if (actorNow == nullptr || !actorNow->isAutomatic()) {
+        return;
+    }
 
-        actorNow->onTurn(*this, snapshot(), side);
-    });
+    actorNow->onTurn(*this, snapshot(), side);
 }
