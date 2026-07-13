@@ -151,7 +151,7 @@ void ChessBoardWidget::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::TextAntialiasing, true);
 
     const QRect board = boardRect();
-    painter.fillRect(rect(), QColor(245, 240, 230));
+    // painter.fillRect(rect(), QColor(245, 240, 230));
 
     if (!boardTexture_.isNull()) {
         painter.drawPixmap(board, boardTexture_);

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "src/core/rule/game_rule.h"
+#include "src/core/game_rule.h"
 
 namespace {
 

@@ -182,7 +182,7 @@ src/data
 
 文件：
 
-- `src/core/rule/game_rule.h`
+- `src/core/game_rule.h`
 
 职责：
 
@@ -208,7 +208,7 @@ src/data
 
 文件：
 
-- `src/core/runtime/turn_context.h`
+- `src/core/turn_context.h`
 
 职责：
 
@@ -230,7 +230,7 @@ src/data
 
 文件：
 
-- `src/core/controller/game_controller.h`
+- `src/core/game_controller.h`
 
 职责：
 
@@ -280,7 +280,7 @@ src/data
 
 文件：
 
-- `src/core/runtime/game_state.h`
+- `src/core/game_state.h`
 
 职责：
 
@@ -302,8 +302,8 @@ src/data
 
 文件：
 
-- `src/core/actor/turn_actor.h`
-- `src/core/actor/human_turn_actor.h`
+- `src/core/turn_actor.h`
+- `src/core/human_turn_actor.h`
 
 职责：
 

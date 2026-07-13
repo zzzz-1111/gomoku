@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>局域网智能五子棋</string>
+   <string>墨弈</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -30,7 +30,7 @@
     <item>
      <widget class="QStackedWidget" name="stackedWidget">
       <property name="currentIndex">
-       <number>0</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="homePage">
        <layout class="QVBoxLayout" name="homeLayout">
@@ -65,10 +65,13 @@
         <item>
          <widget class="QLabel" name="titleLabel">
           <property name="styleSheet">
-           <string notr="true">font-size: 32px; font-weight: 700; color: #1f3a2b;</string>
+           <string notr="true">font-family: "华文行楷";
+font-size: 34px;
+font-weight: 400;
+color: #1f3a2b;</string>
           </property>
           <property name="text">
-           <string>局域网智能五子棋</string>
+           <string>墨弈</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -78,7 +81,10 @@
         <item>
          <widget class="QLabel" name="subtitleLabel">
           <property name="styleSheet">
-           <string notr="true">font-size: 15px; color: #607164;</string>
+           <string notr="true">font-family: "华文行楷";
+font-size: 18px;
+font-weight: 400;
+color: #607164;</string>
           </property>
           <property name="text">
            <string>选择一个模式开始</string>
@@ -110,7 +116,9 @@
            </size>
           </property>
           <property name="styleSheet">
-           <string notr="true">font-size: 17px; font-weight: 600;</string>
+           <string notr="true">font-family: "华文行楷";
+font-size: 20px;
+font-weight: 400;</string>
           </property>
           <property name="text">
            <string>开始对局</string>
@@ -126,7 +134,9 @@
            </size>
           </property>
           <property name="styleSheet">
-           <string notr="true">font-size: 15px;</string>
+           <string notr="true">font-family: "华文行楷";
+font-size: 18px;
+font-weight: 400;</string>
           </property>
           <property name="text">
            <string>历史棋局</string>
@@ -142,7 +152,9 @@
            </size>
           </property>
           <property name="styleSheet">
-           <string notr="true">font-size: 15px;</string>
+           <string notr="true">font-family: "华文行楷";
+font-size: 18px;
+font-weight: 400;</string>
           </property>
           <property name="text">
            <string>系统设置</string>
@@ -158,7 +170,9 @@
            </size>
           </property>
           <property name="styleSheet">
-           <string notr="true">font-size: 15px;</string>
+           <string notr="true">font-family: "华文行楷";
+font-size: 18px;
+font-weight: 400;</string>
           </property>
           <property name="text">
            <string>退出系统</string>
@@ -181,6 +195,48 @@
        </layout>
       </widget>
       <widget class="QWidget" name="networkPage">
+       <property name="styleSheet">
+        <string notr="true">QWidget#networkPage {
+    border-image: url(:/assets/home/home_hero_bg.png) 0 0 0 0 stretch stretch;
+}
+QFrame#roomListFrame, QFrame#networkControlFrame {
+    background: transparent;
+    border: 1px solid rgba(31, 58, 43, 0.16);
+    border-radius: 22px;
+}
+QListWidget#roomListWidget {
+    background: rgba(255, 255, 255, 0.30);
+    border: 1px solid rgba(31, 58, 43, 0.10);
+    border-radius: 16px;
+    padding: 6px;
+}
+QListWidget#roomListWidget::item {
+    padding: 10px 12px;
+    margin: 4px;
+    border-radius: 12px;
+}
+QListWidget#roomListWidget::item:selected {
+    background: rgba(31, 58, 43, 0.18);
+}
+QPushButton#networkBackButton,
+QPushButton#refreshRoomsButton,
+QPushButton#discoverButton,
+QPushButton#hostButton,
+QPushButton#joinRoomButton {
+    background-color: rgba(255, 255, 255, 0.68);
+    color: #1f3a2b;
+    border: 1px solid rgba(31, 58, 43, 0.18);
+    border-radius: 14px;
+    padding: 8px 16px;
+}
+QPushButton#networkBackButton:hover,
+QPushButton#refreshRoomsButton:hover,
+QPushButton#discoverButton:hover,
+QPushButton#hostButton:hover,
+QPushButton#joinRoomButton:hover {
+    background-color: rgba(255, 255, 255, 0.84);
+}</string>
+       </property>
        <layout class="QVBoxLayout" name="networkRootLayout">
         <property name="spacing">
          <number>16</number>
@@ -214,10 +270,13 @@
           <item>
            <widget class="QLabel" name="networkTitleLabel">
             <property name="styleSheet">
-             <string notr="true">font-size: 24px; font-weight: 700; color: #1f3a2b;</string>
+             <string notr="true">font-family: "华文行楷";
+font-size: 28px;
+font-weight: 400;
+color: #1f3a2b;</string>
             </property>
             <property name="text">
-             <string>局域网对战</string>
+             <string>墨弈联机</string>
             </property>
            </widget>
           </item>
@@ -257,10 +316,10 @@
           <item>
            <widget class="QFrame" name="roomListFrame">
             <property name="frameShape">
-             <enum>QFrame::Shape::StyledPanel</enum>
+             <enum>QFrame::Shape::NoFrame</enum>
             </property>
             <property name="frameShadow">
-             <enum>QFrame::Shadow::Raised</enum>
+             <enum>QFrame::Shadow::Plain</enum>
             </property>
             <layout class="QVBoxLayout" name="roomListLayout">
              <property name="leftMargin">
@@ -278,7 +337,10 @@
              <item>
               <widget class="QLabel" name="roomListTitleLabel">
                <property name="styleSheet">
-                <string notr="true">font-size: 16px; font-weight: 600; color: #1f3a2b;</string>
+                <string notr="true">font-family: "华文行楷";
+font-size: 18px;
+font-weight: 400;
+color: #1f3a2b;</string>
                </property>
                <property name="text">
                 <string>发现的房间</string>
@@ -320,10 +382,10 @@
              </size>
             </property>
             <property name="frameShape">
-             <enum>QFrame::Shape::StyledPanel</enum>
+             <enum>QFrame::Shape::NoFrame</enum>
             </property>
             <property name="frameShadow">
-             <enum>QFrame::Shadow::Raised</enum>
+             <enum>QFrame::Shadow::Plain</enum>
             </property>
             <layout class="QVBoxLayout" name="networkControlLayout">
              <property name="spacing">
@@ -344,7 +406,10 @@
              <item>
               <widget class="QLabel" name="networkStatusLabel">
                <property name="styleSheet">
-                <string notr="true">font-size: 16px; font-weight: 600; color: #1f3a2b;</string>
+                <string notr="true">font-family: "华文行楷";
+font-size: 18px;
+font-weight: 400;
+color: #1f3a2b;</string>
                </property>
                <property name="text">
                 <string>状态：未开始扫描</string>
@@ -353,6 +418,12 @@
              </item>
              <item>
               <widget class="QLabel" name="hostInfoLabel">
+               <property name="styleSheet">
+                <string notr="true">font-family: "华文行楷";
+font-size: 16px;
+font-weight: 400;
+color: #1f3a2b;</string>
+               </property>
                <property name="text">
                 <string>主机：未启动</string>
                </property>
@@ -399,11 +470,17 @@
              </item>
              <item>
               <widget class="QLabel" name="networkHintLabel">
-               <property name="wordWrap">
-                <bool>true</bool>
+               <property name="styleSheet">
+                <string notr="true">font-family: "华文行楷";
+font-size: 15px;
+font-weight: 400;
+color: #1f3a2b;</string>
                </property>
                <property name="text">
-                <string>先扫描局域网里的房间，再选择一个加入；如果你要开房，就先创建主机。</string>
+                <string>先扫描联机房间，再选择一个加入；如果你要开房，就先创建主机。</string>
+               </property>
+               <property name="wordWrap">
+                <bool>true</bool>
                </property>
               </widget>
              </item>
@@ -428,6 +505,21 @@
        </layout>
       </widget>
       <widget class="QWidget" name="gamePage">
+       <property name="styleSheet">
+        <string notr="true">QWidget#gamePage {
+    border-image: url(:/assets/game/game_background.png) 0 0 0 0 stretch stretch;
+}
+QPushButton#backButton {
+    background-color: rgba(255, 255, 255, 0.72);
+    color: #1f3a2b;
+    border: 1px solid rgba(31, 58, 43, 0.18);
+    border-radius: 14px;
+    padding: 8px 16px;
+}
+QPushButton#backButton:hover {
+    background-color: rgba(255, 255, 255, 0.88);
+}</string>
+       </property>
        <layout class="QVBoxLayout" name="gameRootLayout">
         <property name="spacing">
          <number>16</number>
@@ -461,7 +553,10 @@
           <item>
            <widget class="QLabel" name="gameTitleLabel">
             <property name="styleSheet">
-             <string notr="true">font-size: 24px; font-weight: 700; color: #1f3a2b;</string>
+             <string notr="true">font-family: "华文行楷";
+font-size: 28px;
+font-weight: 400;
+color: #1f3a2b;</string>
             </property>
             <property name="text">
              <string>对局界面</string>
@@ -504,10 +599,21 @@
           <item>
            <widget class="QFrame" name="boardFrame">
             <property name="frameShape">
-             <enum>QFrame::Shape::StyledPanel</enum>
+             <enum>QFrame::Shape::NoFrame</enum>
             </property>
             <property name="frameShadow">
-             <enum>QFrame::Shadow::Raised</enum>
+             <enum>QFrame::Shadow::Plain</enum>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QFrame#boardFrame {
+    background: transparent;
+    border: 1px solid rgba(31, 58, 43, 0.16);
+    border-radius: 22px;
+}
+QWidget#boardPlaceholder {
+    background: transparent;
+    border: none;
+}</string>
             </property>
             <layout class="QVBoxLayout" name="boardLayout">
              <property name="leftMargin">
@@ -531,7 +637,8 @@
                 </size>
                </property>
                <property name="styleSheet">
-                <string notr="true">background: #f2dfb9; border: 2px solid #8b6a3d; border-radius: 10px;</string>
+                <string notr="true">background: transparent;
+border: none;</string>
                </property>
               </widget>
              </item>
@@ -547,10 +654,17 @@
              </size>
             </property>
             <property name="frameShape">
-             <enum>QFrame::Shape::StyledPanel</enum>
+             <enum>QFrame::Shape::NoFrame</enum>
             </property>
             <property name="frameShadow">
-             <enum>QFrame::Shadow::Raised</enum>
+             <enum>QFrame::Shadow::Plain</enum>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">QFrame#infoFrame {
+    background: transparent;
+    border: 1px solid rgba(31, 58, 43, 0.16);
+    border-radius: 22px;
+}</string>
             </property>
             <layout class="QVBoxLayout" name="infoLayout">
              <property name="spacing">
@@ -579,11 +693,58 @@
               </widget>
              </item>
              <item>
-              <widget class="QLabel" name="playerLabel">
-               <property name="text">
-                <string>当前玩家：黑方</string>
+              <layout class="QHBoxLayout" name="playerRowLayout">
+               <property name="spacing">
+                <number>12</number>
                </property>
-              </widget>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QLabel" name="playerIconLabel">
+                 <property name="minimumSize">
+                  <size>
+                   <width>88</width>
+                   <height>88</height>
+                  </size>
+                 </property>
+                 <property name="maximumSize">
+                  <size>
+                   <width>88</width>
+                   <height>88</height>
+                  </size>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignmentFlag::AlignCenter</set>
+                 </property>
+                 <property name="scaledContents">
+                  <bool>true</bool>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="playerLabel">
+                 <property name="styleSheet">
+                  <string notr="true">font-size: 16px; font-weight: 600; color: #1f3a2b;</string>
+                 </property>
+                 <property name="text">
+                  <string>当前玩家：黑方</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
              </item>
              <item>
               <widget class="QLabel" name="stepLabel">
