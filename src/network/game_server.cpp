@@ -23,10 +23,20 @@ constexpr int kFramePrefixSize = static_cast<int>(sizeof(quint32));
 
 QString localIpv4Address()
 {
-    const auto addresses = QNetworkInterface::allAddresses();
-    for (const QHostAddress &address : addresses) {
-        if (address.protocol() == QAbstractSocket::IPv4Protocol && !address.isLoopback()) {
-            return address.toString();
+    const auto interfaces = QNetworkInterface::allInterfaces();
+    for (const QNetworkInterface &networkInterface : interfaces) {
+        const auto flags = networkInterface.flags();
+        if (!flags.testFlag(QNetworkInterface::IsUp)
+            || !flags.testFlag(QNetworkInterface::IsRunning)
+            || flags.testFlag(QNetworkInterface::IsLoopBack)) {
+            continue;
+        }
+
+        for (const QNetworkAddressEntry &entry : networkInterface.addressEntries()) {
+            const QHostAddress address = entry.ip();
+            if (address.protocol() == QAbstractSocket::IPv4Protocol && !address.isLoopback()) {
+                return address.toString();
+            }
         }
     }
     return QStringLiteral("127.0.0.1");
@@ -49,6 +59,22 @@ bool extractFrame(QByteArray &buffer, QByteArray *payload)
     *payload = buffer.mid(kFramePrefixSize, static_cast<int>(size));
     buffer.remove(0, kFramePrefixSize + static_cast<int>(size));
     return true;
+}
+
+void writeFrame(QTcpSocket *socket, const QByteArray &payload)
+{
+    if (socket == nullptr) {
+        return;
+    }
+
+    const QByteArray frame = [payload]() {
+        QByteArray data;
+        data.resize(kFramePrefixSize);
+        qToBigEndian<quint32>(static_cast<quint32>(payload.size()), reinterpret_cast<uchar *>(data.data()));
+        data.append(payload);
+        return data;
+    }();
+    socket->write(frame);
 }
 
 } // namespace
@@ -119,6 +145,8 @@ void GameServer::stopListening()
     clients_.clear();
     receiveBuffers_.clear();
     clientNames_.clear();
+    authenticatedClients_.clear();
+    room_.setGuestName(QString());
     listeningPort_ = 0;
     emit serverStopped();
 }
@@ -143,6 +171,22 @@ int GameServer::connectedClientCount() const
     return clients_.size();
 }
 
+int GameServer::readyClientCount() const
+{
+    int count = 0;
+    for (QTcpSocket *socket : authenticatedClients_) {
+        if (socket != nullptr && socket->state() == QAbstractSocket::ConnectedState) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+bool GameServer::hasReadyClient() const
+{
+    return readyClientCount() > 0;
+}
+
 void GameServer::setHostName(const QString &name)
 {
     room_.setHostName(name);
@@ -161,6 +205,18 @@ void GameServer::setBoardSize(int size)
 int GameServer::boardSize() const
 {
     return room_.boardSize();
+}
+
+void GameServer::setHostSide(PlayerSide side)
+{
+    if (side == PlayerSide::Black || side == PlayerSide::White) {
+        hostSide_ = side;
+    }
+}
+
+PlayerSide GameServer::hostSide() const
+{
+    return hostSide_;
 }
 
 void GameServer::setCurrentMode(GameMode mode)
@@ -188,11 +244,36 @@ GameRoom GameServer::room() const
     return room_;
 }
 
+void GameServer::broadcastMessage(const NetworkMessage &message, QTcpSocket *excludeSocket)
+{
+    // 未完成 LOGIN 的 TCP 连接不属于对局，不能接收任何落子消息。
+    if (authenticatedClients_.isEmpty()) {
+        return;
+    }
+
+    const QByteArray payload = QJsonDocument(networkMessageToJson(message)).toJson(QJsonDocument::Compact);
+    for (QTcpSocket *socket : authenticatedClients_) {
+        if (socket == nullptr || socket == excludeSocket
+            || socket->state() != QAbstractSocket::ConnectedState) {
+            continue;
+        }
+        writeFrame(socket, payload);
+    }
+}
+
 void GameServer::handleNewConnection()
 {
     while (server_->hasPendingConnections()) {
         QTcpSocket *socket = server_->nextPendingConnection();
         if (socket == nullptr) {
+            continue;
+        }
+
+        // 当前协议只定义了房主和一名客人。允许多个客户端会让所有客人都成为白方，
+        // 从而造成回合和棋盘状态冲突。
+        if (!clients_.isEmpty()) {
+            socket->disconnectFromHost();
+            socket->deleteLater();
             continue;
         }
 
@@ -246,15 +327,43 @@ void GameServer::handleClientReadyRead()
         const NetworkMessage message = networkMessageFromJson(document.object());
         switch (message.type) {
         case MessageType::Login: {
-            const QString playerName = message.payload.value(QStringLiteral("name")).toString();
-            if (!playerName.isEmpty()) {
-                clientNames_[socket] = playerName;
-                emit clientConnected(playerName);
+            // TCP 连接建立并不代表玩家已经准备好。只有收到一次合法 LOGIN 后，
+            // 才把该连接标记为“已就绪”，并允许联机对局正式开始。
+            if (authenticatedClients_.contains(socket)) {
+                break;
             }
+
+            QString playerName = message.payload.value(QStringLiteral("name")).toString().trimmed();
+            if (playerName.isEmpty()) {
+                playerName = QStringLiteral("Player");
+            }
+
+            clientNames_[socket] = playerName;
+            authenticatedClients_.insert(socket);
+            room_.setGuestName(playerName);
+
+            // 该信号与 MainWindow 位于同一线程，默认使用直接连接。
+            // MainWindow 会先重置主机棋盘并进入正式对局，然后这里再发送 GAME_START。
+            emit clientConnected(playerName);
+
+            NetworkMessage gameStart;
+            gameStart.type = MessageType::GameStart;
+            const PlayerSide clientSide = hostSide_ == PlayerSide::Black ? PlayerSide::White : PlayerSide::Black;
+            gameStart.payload.insert(QStringLiteral("yourSide"), static_cast<int>(clientSide));
+            gameStart.payload.insert(QStringLiteral("firstPlayer"), static_cast<int>(PieceColor::Black));
+            gameStart.payload.insert(QStringLiteral("mode"), static_cast<int>(GameMode::OnlineClient));
+            gameStart.payload.insert(QStringLiteral("boardSize"), room_.boardSize());
+            gameStart.payload.insert(QStringLiteral("roomCode"), room_.roomId());
+            writeFrame(socket, QJsonDocument(networkMessageToJson(gameStart)).toJson(QJsonDocument::Compact));
             break;
         }
         case MessageType::Disconnect:
             socket->disconnectFromHost();
+            break;
+        case MessageType::Move:
+            if (authenticatedClients_.contains(socket)) {
+                emit clientMessageReceived(socket, message);
+            }
             break;
         default:
             break;
@@ -270,11 +379,16 @@ void GameServer::handleClientDisconnected()
     }
 
     const QString playerName = clientNames_.value(socket, socket->peerAddress().toString());
-    emit clientDisconnected(playerName);
 
+    // 先清理状态，再发信号。这样 MainWindow 在处理断开事件时看到的
+    // hasReadyClient()/readyClientCount() 已经是准确值，不会出现短暂误判。
+    authenticatedClients_.remove(socket);
     receiveBuffers_.remove(socket);
     clientNames_.remove(socket);
     clients_.removeAll(socket);
+    room_.setGuestName(QString());
+
+    emit clientDisconnected(playerName);
     socket->deleteLater();
 }
 
@@ -289,7 +403,32 @@ void GameServer::broadcastRoomInfo()
         return;
     }
 
-    broadcastSocket_->writeDatagram(payload, QHostAddress::Broadcast, discoveryPort_);
+    bool sent = false;
+    const auto interfaces = QNetworkInterface::allInterfaces();
+    for (const QNetworkInterface &networkInterface : interfaces) {
+        const auto flags = networkInterface.flags();
+        if (!flags.testFlag(QNetworkInterface::IsUp)
+            || !flags.testFlag(QNetworkInterface::IsRunning)
+            || flags.testFlag(QNetworkInterface::IsLoopBack)
+            || !flags.testFlag(QNetworkInterface::CanBroadcast)) {
+            continue;
+        }
+
+        for (const QNetworkAddressEntry &entry : networkInterface.addressEntries()) {
+            if (entry.ip().protocol() != QAbstractSocket::IPv4Protocol
+                || entry.broadcast().isNull()) {
+                continue;
+            }
+            if (broadcastSocket_->writeDatagram(payload, entry.broadcast(), discoveryPort_) >= 0) {
+                sent = true;
+            }
+        }
+    }
+
+    // 某些系统没有提供子网广播地址，保留全局广播作为兜底。
+    if (!sent) {
+        broadcastSocket_->writeDatagram(payload, QHostAddress::Broadcast, discoveryPort_);
+    }
     emit roomBroadcasted(room_);
 }
 

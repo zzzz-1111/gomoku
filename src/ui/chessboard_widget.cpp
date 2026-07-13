@@ -128,6 +128,26 @@ void ChessBoardWidget::clearMarkers()
     update();
 }
 
+void ChessBoardWidget::setMoveInputEnabled(bool enabled)
+{
+    if (moveInputEnabled_ == enabled) {
+        return;
+    }
+
+    moveInputEnabled_ = enabled;
+    if (!moveInputEnabled_) {
+        hoverCell_ = {};
+        hasHoverCell_ = false;
+        emit hoverLeftBoard();
+    }
+    update();
+}
+
+bool ChessBoardWidget::isMoveInputEnabled() const
+{
+    return moveInputEnabled_;
+}
+
 QSize ChessBoardWidget::minimumSizeHint() const
 {
     return {480, 480};
@@ -259,6 +279,14 @@ void ChessBoardWidget::mousePressEvent(QMouseEvent *event)
         return;
     }
 
+    // 联机等待阶段使用独立输入锁。即使棋盘页面已经显示，
+    // 也不会发出 cellClicked，更不会进入 GameController::placeStone。
+    if (!moveInputEnabled_) {
+        event->accept();
+        emit moveInputRejected();
+        return;
+    }
+
     const BoardPosition position = pointToCell(event->position().toPoint());
     if (!position.isValid()) {
         return;
@@ -269,6 +297,15 @@ void ChessBoardWidget::mousePressEvent(QMouseEvent *event)
 
 void ChessBoardWidget::mouseMoveEvent(QMouseEvent *event)
 {
+    if (!moveInputEnabled_) {
+        if (hasHoverCell_) {
+            hasHoverCell_ = false;
+            emit hoverLeftBoard();
+            update();
+        }
+        return;
+    }
+
     const BoardPosition position = pointToCell(event->position().toPoint());
     if (position.isValid()) {
         if (!hasHoverCell_ || hoverCell_.x != position.x || hoverCell_.y != position.y) {

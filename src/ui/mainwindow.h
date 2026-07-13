@@ -16,6 +16,7 @@ class ChessBoardWidget;
 class GameController;
 class GameServer;
 class NetworkManager;
+class QTcpSocket;
 
 class MainWindow : public QMainWindow
 {
@@ -27,6 +28,10 @@ public:
 
 private:
     void startGame(GameMode mode, PlayerSide humanSide = PlayerSide::Black, AIDifficulty aiDifficulty = AIDifficulty::Normal);
+    void prepareOnlineHostWaiting();
+    void setOnlineGameActive(bool active);
+    void updateBoardMoveInput();
+    bool hostMayPlaceStone() const;
     void configureTurnActors(GameMode mode, PlayerSide humanSide, AIDifficulty aiDifficulty);
     void setupHomePage();
     void setupGamePage();
@@ -35,7 +40,9 @@ private:
     void refreshGameInfo();
     void refreshDiscoveredRooms();
     void syncBoardFromController();
+    void refreshOnlineIdentityLabels();
     void showGameOverPrompt(const QString &title, const QString &message);
+    void showPendingOnlineHostGameOverPrompt();
     QString modeText(GameMode mode) const;
     QString playerText(PieceColor color) const;
 
@@ -46,6 +53,13 @@ private:
     GameServer *gameServer_ = nullptr;
     GameMode currentMode_ = GameMode::LocalTwoPlayer;
     PlayerSide humanSide_ = PlayerSide::Black;
+    QString localAccountName_;
+    bool applyingNetworkMove_ = false;
+    bool onlineGameStarted_ = false;
+    bool hostPlayerJoined_ = false;
+    bool pendingOnlineHostGameOverPrompt_ = false;
+    QString pendingGameOverTitle_;
+    QString pendingGameOverMessage_;
 };
 
 #endif // MAINWINDOW_H

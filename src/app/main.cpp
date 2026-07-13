@@ -6,6 +6,8 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+    a.setOrganizationName(QStringLiteral("Gomoku"));
+    a.setApplicationName(QStringLiteral("Gomoku"));
     a.setWindowIcon(QIcon(":/assets/app/app_icon.png"));
     MainWindow w;
     w.setWindowIcon(QIcon(":/assets/app/app_icon.png"));

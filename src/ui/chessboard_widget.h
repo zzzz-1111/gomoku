@@ -26,6 +26,8 @@ public:
     void setLastMove(const BoardPosition &position);
     void setSuggestedMove(const BoardPosition &position);
     void clearMarkers();
+    void setMoveInputEnabled(bool enabled);
+    bool isMoveInputEnabled() const;
 
     QSize minimumSizeHint() const override;
     QSize sizeHint() const override;
@@ -34,6 +36,7 @@ signals:
     void cellClicked(int x, int y);
     void cellHovered(int x, int y);
     void hoverLeftBoard();
+    void moveInputRejected();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -54,6 +57,7 @@ private:
     BoardPosition suggestedMove_;
     BoardPosition hoverCell_;
     bool hasHoverCell_ = false;
+    bool moveInputEnabled_ = true;
     QPixmap boardTexture_;
     QPixmap blackStone_;
     QPixmap whiteStone_;

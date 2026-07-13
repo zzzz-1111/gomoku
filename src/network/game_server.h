@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QtGlobal>
 #include <QString>
+#include <QSet>
 #include <QVector>
 
 class QUdpSocket;
@@ -14,6 +15,7 @@ class QTcpSocket;
 
 #include "src/common/config.h"
 #include "src/network/game_room.h"
+#include "src/network/protocol.h"
 
 class GameServer : public QObject
 {
@@ -29,10 +31,15 @@ public:
 
     QString roomCode() const;
     int connectedClientCount() const;
+    int readyClientCount() const;
+    bool hasReadyClient() const;
     void setHostName(const QString &name);
     QString hostName() const;
     void setBoardSize(int size);
     int boardSize() const;
+    void setHostSide(PlayerSide side);
+    PlayerSide hostSide() const;
+    void broadcastMessage(const NetworkMessage &message, QTcpSocket *excludeSocket = nullptr);
     void setCurrentMode(GameMode mode);
     GameMode currentMode() const;
     void setDiscoveryPort(quint16 port);
@@ -44,6 +51,7 @@ signals:
     void serverStopped();
     void clientConnected(const QString &playerName);
     void clientDisconnected(const QString &playerName);
+    void clientMessageReceived(QTcpSocket *clientSocket, const NetworkMessage &message);
     void serverError(const QString &errorText);
     void roomBroadcasted(const GameRoom &room);
 
@@ -63,8 +71,10 @@ private:
     QVector<QTcpSocket *> clients_;
     QHash<QTcpSocket *, QByteArray> receiveBuffers_;
     QHash<QTcpSocket *, QString> clientNames_;
+    QSet<QTcpSocket *> authenticatedClients_;
     GameRoom room_;
     quint16 listeningPort_ = 0;
     quint16 discoveryPort_ = gomoku_config::kDefaultDiscoveryPort;
     QString roomCode_;
+    PlayerSide hostSide_ = PlayerSide::Black;
 };

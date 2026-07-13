@@ -165,10 +165,16 @@ QVector<GameRoom> NetworkManager::discoveredRooms() const
         rooms.push_back(room);
     }
     std::sort(rooms.begin(), rooms.end(), [](const GameRoom &lhs, const GameRoom &rhs) {
-        if (lhs.lastSeenAt() != rhs.lastSeenAt()) {
-            return lhs.lastSeenAt() > rhs.lastSeenAt();
+        if (lhs.roomId() != rhs.roomId()) {
+            return lhs.roomId() < rhs.roomId();
         }
-        return lhs.roomId() < rhs.roomId();
+        if (lhs.hostName() != rhs.hostName()) {
+            return lhs.hostName() < rhs.hostName();
+        }
+        if (lhs.hostAddress() != rhs.hostAddress()) {
+            return lhs.hostAddress() < rhs.hostAddress();
+        }
+        return lhs.hostPort() < rhs.hostPort();
     });
     return rooms;
 }
@@ -250,9 +256,10 @@ bool NetworkManager::registerDiscoveredRoom(const GameRoom &room)
 
     if (isNew) {
         emit roomDiscovered(stored);
+        emit roomsChanged();
+        return true;
     }
-    emit roomsChanged();
-    return isNew;
+    return false;
 }
 
 GameRoom NetworkManager::parseDiscoveryPayload(const QByteArray &payload, const QString &senderAddress) const
@@ -271,7 +278,11 @@ GameRoom NetworkManager::parseDiscoveryPayload(const QByteArray &payload, const 
 
     room.setRoomId(object.value(QStringLiteral("roomCode")).toString());
     room.setHostName(object.value(QStringLiteral("hostName")).toString());
-    room.setHostAddress(object.value(QStringLiteral("hostAddress")).toString(senderAddress));
+
+    // 广播包中的 hostAddress 可能来自 VPN、虚拟网卡或已经失效的网卡。
+    // UDP 数据报的来源地址才是当前客户端真正能看到的房主地址，因此优先使用它。
+    const QString announcedAddress = object.value(QStringLiteral("hostAddress")).toString();
+    room.setHostAddress(senderAddress.isEmpty() ? announcedAddress : senderAddress);
     room.setHostPort(static_cast<quint16>(object.value(QStringLiteral("hostPort")).toInt()));
     room.setBoardSize(object.value(QStringLiteral("boardSize")).toInt(gomoku_config::kBoardSize));
     room.setCurrentMode(static_cast<GameMode>(object.value(QStringLiteral("mode")).toInt(static_cast<int>(GameMode::OnlineHost))));

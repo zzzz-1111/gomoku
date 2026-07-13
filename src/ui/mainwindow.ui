@@ -222,7 +222,8 @@ QPushButton#networkBackButton,
 QPushButton#refreshRoomsButton,
 QPushButton#discoverButton,
 QPushButton#hostButton,
-QPushButton#joinRoomButton {
+QPushButton#joinRoomButton,
+QPushButton#directJoinButton {
     background-color: rgba(255, 255, 255, 0.68);
     color: #1f3a2b;
     border: 1px solid rgba(31, 58, 43, 0.18);
@@ -233,7 +234,8 @@ QPushButton#networkBackButton:hover,
 QPushButton#refreshRoomsButton:hover,
 QPushButton#discoverButton:hover,
 QPushButton#hostButton:hover,
-QPushButton#joinRoomButton:hover {
+QPushButton#joinRoomButton:hover,
+QPushButton#directJoinButton:hover {
     background-color: rgba(255, 255, 255, 0.84);
 }</string>
        </property>
@@ -465,6 +467,19 @@ color: #1f3a2b;</string>
                </property>
                <property name="text">
                 <string>加入所选房间</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="directJoinButton">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>44</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>通过IP加入</string>
                </property>
               </widget>
              </item>
