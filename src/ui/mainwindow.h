@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QByteArray>
 #include <QString>
 
 #include "src/common/gomoku_types.h"
@@ -54,6 +55,9 @@ private:
     GameMode currentMode_ = GameMode::LocalTwoPlayer;
     PlayerSide humanSide_ = PlayerSide::Black;
     QString localAccountName_;
+    QString localAvatarPath_;
+    QString remoteAccountName_;
+    QByteArray remoteAvatarBytes_;
     bool applyingNetworkMove_ = false;
     bool onlineGameStarted_ = false;
     bool hostPlayerJoined_ = false;

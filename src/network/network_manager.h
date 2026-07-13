@@ -23,6 +23,8 @@ public:
 
     void setPlayerName(const QString &name);
     QString playerName() const;
+    void setAvatarData(const QByteArray &data);
+    QByteArray avatarData() const;
 
     bool connectToHost(const QString &host, quint16 port);
     bool connectToRoom(const GameRoom &room);
@@ -63,6 +65,7 @@ private:
     QUdpSocket *discoverySocket_ = nullptr;
     QHash<QString, GameRoom> discoveredRooms_;
     QString playerName_;
+    QByteArray avatarData_;
     QByteArray socketBuffer_;
     quint16 discoveryPort_ = gomoku_config::kDefaultDiscoveryPort;
 };

@@ -80,6 +80,16 @@ QString NetworkManager::playerName() const
     return playerName_;
 }
 
+void NetworkManager::setAvatarData(const QByteArray &data)
+{
+    avatarData_ = data;
+}
+
+QByteArray NetworkManager::avatarData() const
+{
+    return avatarData_;
+}
+
 bool NetworkManager::connectToHost(const QString &host, quint16 port)
 {
     if (host.isEmpty() || port == 0) {
@@ -190,6 +200,9 @@ void NetworkManager::handleConnected()
     NetworkMessage login;
     login.type = MessageType::Login;
     login.payload.insert(QStringLiteral("name"), playerName_.isEmpty() ? QStringLiteral("Player") : playerName_);
+    if (!avatarData_.isEmpty()) {
+        login.payload.insert(QStringLiteral("avatar"), QString::fromLatin1(avatarData_.toBase64()));
+    }
     sendMessage(login);
     emit connectedToServer();
 }

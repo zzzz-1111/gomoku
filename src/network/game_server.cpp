@@ -197,6 +197,16 @@ QString GameServer::hostName() const
     return room_.hostName();
 }
 
+void GameServer::setHostAvatarData(const QByteArray &data)
+{
+    hostAvatarData_ = data;
+}
+
+QByteArray GameServer::hostAvatarData() const
+{
+    return hostAvatarData_;
+}
+
 void GameServer::setBoardSize(int size)
 {
     room_.setBoardSize(size);
@@ -280,6 +290,7 @@ void GameServer::handleNewConnection()
         clients_.push_back(socket);
         receiveBuffers_.insert(socket, QByteArray());
         clientNames_.insert(socket, socket->peerAddress().toString());
+        clientAvatarData_.insert(socket, QByteArray());
 
         connect(socket, &QTcpSocket::readyRead, this, &GameServer::handleClientReadyRead);
         connect(socket, &QTcpSocket::disconnected, this, &GameServer::handleClientDisconnected);
@@ -337,14 +348,17 @@ void GameServer::handleClientReadyRead()
             if (playerName.isEmpty()) {
                 playerName = QStringLiteral("Player");
             }
+            const QByteArray avatarData = QByteArray::fromBase64(
+                message.payload.value(QStringLiteral("avatar")).toString().toLatin1());
 
             clientNames_[socket] = playerName;
+            clientAvatarData_[socket] = avatarData;
             authenticatedClients_.insert(socket);
             room_.setGuestName(playerName);
 
             // 该信号与 MainWindow 位于同一线程，默认使用直接连接。
             // MainWindow 会先重置主机棋盘并进入正式对局，然后这里再发送 GAME_START。
-            emit clientConnected(playerName);
+            emit clientConnected(playerName, avatarData);
 
             NetworkMessage gameStart;
             gameStart.type = MessageType::GameStart;
@@ -354,6 +368,10 @@ void GameServer::handleClientReadyRead()
             gameStart.payload.insert(QStringLiteral("mode"), static_cast<int>(GameMode::OnlineClient));
             gameStart.payload.insert(QStringLiteral("boardSize"), room_.boardSize());
             gameStart.payload.insert(QStringLiteral("roomCode"), room_.roomId());
+            gameStart.payload.insert(QStringLiteral("hostName"), room_.hostName().isEmpty() ? QStringLiteral("Host") : room_.hostName());
+            if (!hostAvatarData_.isEmpty()) {
+                gameStart.payload.insert(QStringLiteral("hostAvatar"), QString::fromLatin1(hostAvatarData_.toBase64()));
+            }
             writeFrame(socket, QJsonDocument(networkMessageToJson(gameStart)).toJson(QJsonDocument::Compact));
             break;
         }
@@ -385,6 +403,7 @@ void GameServer::handleClientDisconnected()
     authenticatedClients_.remove(socket);
     receiveBuffers_.remove(socket);
     clientNames_.remove(socket);
+    clientAvatarData_.remove(socket);
     clients_.removeAll(socket);
     room_.setGuestName(QString());
 

@@ -3,6 +3,7 @@
         <file alias="assets/app/app_icon.png">res/assets/app/app_icon.png</file>
         <file alias="assets/home/home_hero_bg.png">res/assets/home/home_hero_bg.png</file>
         <file alias="assets/game/game_background.png">res/assets/game/game_background.png</file>
+        <file alias="assets/profile/default_avatar.png">res/assets/profile/default_avatar.png</file>
         <file alias="assets/profile/black.png">res/assets/profile/black.png</file>
         <file alias="assets/profile/white.png">res/assets/profile/white.png</file>
         <file alias="assets/board/board_texture.png">res/assets/board/board_texture.png</file>

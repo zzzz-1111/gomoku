@@ -35,6 +35,8 @@ public:
     bool hasReadyClient() const;
     void setHostName(const QString &name);
     QString hostName() const;
+    void setHostAvatarData(const QByteArray &data);
+    QByteArray hostAvatarData() const;
     void setBoardSize(int size);
     int boardSize() const;
     void setHostSide(PlayerSide side);
@@ -49,7 +51,7 @@ public:
 signals:
     void serverStarted(quint16 port);
     void serverStopped();
-    void clientConnected(const QString &playerName);
+    void clientConnected(const QString &playerName, const QByteArray &avatarData);
     void clientDisconnected(const QString &playerName);
     void clientMessageReceived(QTcpSocket *clientSocket, const NetworkMessage &message);
     void serverError(const QString &errorText);
@@ -71,10 +73,12 @@ private:
     QVector<QTcpSocket *> clients_;
     QHash<QTcpSocket *, QByteArray> receiveBuffers_;
     QHash<QTcpSocket *, QString> clientNames_;
+    QHash<QTcpSocket *, QByteArray> clientAvatarData_;
     QSet<QTcpSocket *> authenticatedClients_;
     GameRoom room_;
     quint16 listeningPort_ = 0;
     quint16 discoveryPort_ = gomoku_config::kDefaultDiscoveryPort;
     QString roomCode_;
+    QByteArray hostAvatarData_;
     PlayerSide hostSide_ = PlayerSide::Black;
 };

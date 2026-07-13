@@ -1,21 +1,31 @@
-#include "mainwindow.h"
+﻿#include "mainwindow.h"
 
 #include "ui_mainwindow.h"
 
 #include <QAbstractItemView>
+#include <QBuffer>
+#include <QDir>
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QIcon>
+#include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QInputDialog>
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QMessageBox>
 #include <QLineEdit>
+#include <QImage>
+#include <QImageReader>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QPixmap>
 #include <QPushButton>
+#include <QLabel>
+#include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <memory>
 
@@ -186,17 +196,268 @@ QString loadOrPromptLocalAccountName(QWidget *parent)
     return accountName;
 }
 
-QString playerIconPath(PieceColor color)
+QString defaultAvatarResourcePath()
 {
-    switch (color) {
-    case PieceColor::Black:
-        return QStringLiteral(":/assets/profile/black.png");
-    case PieceColor::White:
-        return QStringLiteral(":/assets/profile/white.png");
-    case PieceColor::Empty:
+    return QStringLiteral(":/assets/profile/default_avatar.png");
+}
+
+QString customAvatarStoragePath()
+{
+    const QString baseDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (baseDir.isEmpty()) {
         return {};
     }
-    return {};
+
+    QDir dir(baseDir);
+    if (!dir.exists(QStringLiteral("avatar")) && !dir.mkpath(QStringLiteral("avatar"))) {
+        return {};
+    }
+
+    return dir.filePath(QStringLiteral("avatar/custom_avatar.png"));
+}
+
+QString resolveLocalAvatarPath()
+{
+    const QString customPath = customAvatarStoragePath();
+    if (!customPath.isEmpty() && QFileInfo::exists(customPath)) {
+        return customPath;
+    }
+    return defaultAvatarResourcePath();
+}
+
+QPixmap loadAvatarPixmap(const QString &path, const QSize &targetSize)
+{
+    QPixmap pixmap;
+    if (!path.isEmpty()) {
+        pixmap.load(path);
+    }
+    if (pixmap.isNull()) {
+        pixmap.load(defaultAvatarResourcePath());
+    }
+    if (targetSize.isValid() && !targetSize.isEmpty()) {
+        pixmap = pixmap.scaled(targetSize, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    }
+    return pixmap;
+}
+
+QByteArray encodeAvatarForNetwork(const QString &path)
+{
+    QImage image(path);
+    if (image.isNull()) {
+        image.load(defaultAvatarResourcePath());
+    }
+    if (image.isNull()) {
+        return {};
+    }
+
+    const QImage scaled = image.scaled(QSize(128, 128),
+                                       Qt::KeepAspectRatioByExpanding,
+                                       Qt::SmoothTransformation);
+    QByteArray bytes;
+    QBuffer buffer(&bytes);
+    buffer.open(QIODevice::WriteOnly);
+    scaled.save(&buffer, "PNG");
+    return bytes;
+}
+
+QPixmap loadAvatarPixmapFromBytes(const QByteArray &bytes, const QSize &targetSize)
+{
+    QPixmap pixmap;
+    if (!bytes.isEmpty()) {
+        pixmap.loadFromData(bytes);
+    }
+    if (pixmap.isNull()) {
+        pixmap.load(defaultAvatarResourcePath());
+    }
+    if (targetSize.isValid() && !targetSize.isEmpty()) {
+        pixmap = pixmap.scaled(targetSize, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    }
+    return pixmap;
+}
+
+bool saveAvatarCopy(const QString &sourcePath, QString *errorMessage)
+{
+    const QString targetPath = customAvatarStoragePath();
+    if (targetPath.isEmpty()) {
+        if (errorMessage != nullptr) {
+            *errorMessage = QStringLiteral("无法创建头像保存目录");
+        }
+        return false;
+    }
+
+    QImageReader reader(sourcePath);
+    reader.setAutoTransform(true);
+    const QImage image = reader.read();
+    if (image.isNull()) {
+        if (errorMessage != nullptr) {
+            *errorMessage = reader.errorString().isEmpty()
+                ? QStringLiteral("读取头像失败")
+                : reader.errorString();
+        }
+        return false;
+    }
+
+    if (!image.save(targetPath, "PNG")) {
+        if (errorMessage != nullptr) {
+            *errorMessage = QStringLiteral("保存头像失败");
+        }
+        return false;
+    }
+
+    return true;
+}
+
+bool clearSavedAvatar(QString *errorMessage)
+{
+    const QString targetPath = customAvatarStoragePath();
+    if (targetPath.isEmpty()) {
+        return true;
+    }
+
+    if (QFile::exists(targetPath) && !QFile::remove(targetPath)) {
+        if (errorMessage != nullptr) {
+            *errorMessage = QStringLiteral("删除自定义头像失败");
+        }
+        return false;
+    }
+    return true;
+}
+
+bool showProfileSettingsDialog(QWidget *parent, QString *accountName, QString *avatarPath)
+{
+    if (parent == nullptr || accountName == nullptr || avatarPath == nullptr) {
+        return false;
+    }
+
+    const QString originalAccountName = accountName->trimmed();
+    const QString originalAvatarPath = *avatarPath;
+    QString stagedAvatarSourcePath = QFileInfo::exists(originalAvatarPath) && originalAvatarPath != defaultAvatarResourcePath()
+        ? originalAvatarPath
+        : QString();
+    bool stagedUseDefaultAvatar = stagedAvatarSourcePath.isEmpty();
+
+    QDialog dialog(parent);
+    dialog.setWindowTitle(QStringLiteral("设置"));
+    dialog.setModal(true);
+    dialog.setMinimumWidth(420);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *titleLabel = new QLabel(QStringLiteral("账号设置"), &dialog);
+    titleLabel->setStyleSheet(QStringLiteral("font-size: 20px; font-weight: 600; color: #1f3a2b;"));
+    layout->addWidget(titleLabel);
+
+    auto *nameRow = new QHBoxLayout;
+    auto *nameLabel = new QLabel(QStringLiteral("昵称"), &dialog);
+    nameLabel->setMinimumWidth(64);
+    auto *nameEdit = new QLineEdit(&dialog);
+    nameEdit->setPlaceholderText(QStringLiteral("用于联机对战显示"));
+    nameEdit->setText(originalAccountName);
+    nameRow->addWidget(nameLabel);
+    nameRow->addWidget(nameEdit);
+    layout->addLayout(nameRow);
+
+    auto *previewLabel = new QLabel(&dialog);
+    previewLabel->setFixedSize(120, 120);
+    previewLabel->setAlignment(Qt::AlignCenter);
+    previewLabel->setStyleSheet(QStringLiteral(
+        "background: rgba(255,255,255,0.70);"
+        "border: 1px solid rgba(31,58,43,0.18);"
+        "border-radius: 16px;"));
+    layout->addWidget(previewLabel, 0, Qt::AlignHCenter);
+
+    auto *pathLabel = new QLabel(&dialog);
+    pathLabel->setWordWrap(true);
+    pathLabel->setStyleSheet(QStringLiteral("color: #4b5c52;"));
+    layout->addWidget(pathLabel);
+
+    auto refreshPreview = [&]() {
+        const QString previewPath = stagedUseDefaultAvatar
+            ? defaultAvatarResourcePath()
+            : stagedAvatarSourcePath;
+        previewLabel->setPixmap(loadAvatarPixmap(previewPath, previewLabel->size()));
+        if (stagedUseDefaultAvatar) {
+            pathLabel->setText(QStringLiteral("当前头像：默认头像"));
+        } else {
+            pathLabel->setText(QStringLiteral("当前头像：自定义头像"));
+        }
+    };
+
+    auto *buttonRow = new QHBoxLayout;
+    auto *uploadButton = new QPushButton(QStringLiteral("上传头像"), &dialog);
+    auto *resetButton = new QPushButton(QStringLiteral("恢复默认"), &dialog);
+    buttonRow->addWidget(uploadButton);
+    buttonRow->addWidget(resetButton);
+    layout->addLayout(buttonRow);
+
+    auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    buttonBox->button(QDialogButtonBox::Ok)->setText(QStringLiteral("保存"));
+    buttonBox->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("取消"));
+    layout->addWidget(buttonBox);
+
+    QObject::connect(uploadButton, &QPushButton::clicked, &dialog, [&]() {
+        const QString fileName = QFileDialog::getOpenFileName(&dialog,
+                                                              QStringLiteral("选择头像"),
+                                                              QString(),
+                                                              QStringLiteral("图片文件 (*.png *.jpg *.jpeg *.bmp *.webp)"));
+        if (fileName.isEmpty()) {
+            return;
+        }
+
+        stagedAvatarSourcePath = fileName;
+        stagedUseDefaultAvatar = false;
+        refreshPreview();
+    });
+
+    QObject::connect(resetButton, &QPushButton::clicked, &dialog, [&]() {
+        stagedAvatarSourcePath.clear();
+        stagedUseDefaultAvatar = true;
+        refreshPreview();
+    });
+
+    QObject::connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    QObject::connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+
+    refreshPreview();
+    if (dialog.exec() != QDialog::Accepted) {
+        return false;
+    }
+
+    const QString enteredName = nameEdit->text().trimmed();
+    if (enteredName.isEmpty()) {
+        QMessageBox::warning(parent, QStringLiteral("保存失败"), QStringLiteral("昵称不能为空"));
+        return false;
+    }
+
+    const bool nameChanged = enteredName != originalAccountName;
+    bool avatarChanged = false;
+
+    if (stagedUseDefaultAvatar) {
+        if (originalAvatarPath != defaultAvatarResourcePath()) {
+            QString errorMessage;
+            if (!clearSavedAvatar(&errorMessage)) {
+                QMessageBox::warning(parent, QStringLiteral("保存失败"), errorMessage);
+                return false;
+            }
+            *avatarPath = defaultAvatarResourcePath();
+            avatarChanged = true;
+        }
+    } else if (stagedAvatarSourcePath != originalAvatarPath) {
+        QString errorMessage;
+        if (!saveAvatarCopy(stagedAvatarSourcePath, &errorMessage)) {
+            QMessageBox::warning(parent, QStringLiteral("保存失败"), errorMessage);
+            return false;
+        }
+        *avatarPath = customAvatarStoragePath();
+        avatarChanged = true;
+    }
+
+    if (nameChanged) {
+        *accountName = enteredName;
+        QSettings settings;
+        settings.setValue(QStringLiteral("user/accountName"), *accountName);
+    }
+
+    return nameChanged || avatarChanged;
 }
 
 } // namespace
@@ -210,7 +471,10 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     localAccountName_ = loadOrPromptLocalAccountName(this);
+    localAvatarPath_ = resolveLocalAvatarPath();
     networkManager_->setPlayerName(localAccountName_);
+    networkManager_->setAvatarData(encodeAvatarForNetwork(localAvatarPath_));
+    gameServer_->setHostAvatarData(encodeAvatarForNetwork(localAvatarPath_));
 
     ui->homePage->setStyleSheet(
         "QWidget#homePage {"
@@ -373,6 +637,8 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(networkManager_, &NetworkManager::disconnectedFromServer, this, [this]() {
         setOnlineGameActive(false);
+        remoteAccountName_.clear();
+        remoteAvatarBytes_.clear();
         ui->networkStatusLabel->setText(QStringLiteral("状态：已断开连接"));
         statusBar()->showMessage(QStringLiteral("已与主机断开，对局已暂停"), 3000);
     });
@@ -389,6 +655,12 @@ MainWindow::MainWindow(QWidget *parent)
             const PieceColor firstPlayer = static_cast<PieceColor>(
                 message.payload.value(QStringLiteral("firstPlayer")).toInt(static_cast<int>(PieceColor::Black)));
             const int boardSize = message.payload.value(QStringLiteral("boardSize")).toInt(controller_->boardSize());
+            remoteAccountName_ = message.payload.value(QStringLiteral("hostName")).toString(QStringLiteral("Host")).trimmed();
+            if (remoteAccountName_.isEmpty()) {
+                remoteAccountName_ = QStringLiteral("Host");
+            }
+            remoteAvatarBytes_ = QByteArray::fromBase64(
+                message.payload.value(QStringLiteral("hostAvatar")).toString().toLatin1());
 
             if (boardSize >= 5 && boardSize != controller_->boardSize()) {
                 controller_->setBoardSize(boardSize);
@@ -458,6 +730,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(gameServer_, &GameServer::serverStopped, this, [this]() {
         hostPlayerJoined_ = false;
         setOnlineGameActive(false);
+        remoteAccountName_.clear();
+        remoteAvatarBytes_.clear();
         ui->hostInfoLabel->setText(QStringLiteral("账号：%1").arg(localAccountName_));
         ui->hostButton->setText(QStringLiteral("创建主机"));
         ui->networkStatusLabel->setText(QStringLiteral("状态：主机已停止"));
@@ -470,10 +744,12 @@ MainWindow::MainWindow(QWidget *parent)
         refreshDiscoveredRooms();
     });
 
-    connect(gameServer_, &GameServer::clientConnected, this, [this](const QString &playerName) {
+    connect(gameServer_, &GameServer::clientConnected, this, [this](const QString &playerName, const QByteArray &avatarData) {
         // 只有收到客户端 LOGIN 后才设置为 true；单纯建立 TCP 连接不算加入。
         hostPlayerJoined_ = true;
         onlineGameStarted_ = true;
+        remoteAccountName_ = playerName;
+        remoteAvatarBytes_ = avatarData;
         startGame(GameMode::OnlineHost, humanSide_);
         updateBoardMoveInput();
         ui->networkStatusLabel->setText(QStringLiteral("状态：%1 已加入，对局开始").arg(playerName));
@@ -482,6 +758,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(gameServer_, &GameServer::clientDisconnected, this, [this](const QString &playerName) {
         // 对手离开后立即锁住主机输入。
         hostPlayerJoined_ = false;
+        remoteAccountName_.clear();
+        remoteAvatarBytes_.clear();
         prepareOnlineHostWaiting();
         ui->networkStatusLabel->setText(QStringLiteral("状态：%1 已断开，等待重新加入").arg(playerName));
         statusBar()->showMessage(QStringLiteral("对方已断开，已停止落子"), 3000);
@@ -660,7 +938,8 @@ void MainWindow::setupHomePage()
 {
     ui->startGameButton->setText(QStringLiteral("本地对战"));
     ui->historyButton->setText(QStringLiteral("人机对战"));
-    ui->settingsButton->setText(QStringLiteral("墨弈联机"));
+    ui->networkButton->setText(QStringLiteral("联机对战"));
+    ui->settingsButton->setText(QStringLiteral("设置"));
     ui->exitButton->setText(QStringLiteral("退出系统"));
 
     connect(ui->startGameButton, &QPushButton::clicked, this, [this]() {
@@ -676,7 +955,7 @@ void MainWindow::setupHomePage()
         startGame(GameMode::HumanVsAI, humanSide, aiDifficulty);
     });
 
-    connect(ui->settingsButton, &QPushButton::clicked, this, [this]() {
+    connect(ui->networkButton, &QPushButton::clicked, this, [this]() {
         if (!networkManager_->isDiscovering()) {
             networkManager_->clearDiscoveredRooms();
             networkManager_->startDiscovery();
@@ -684,6 +963,21 @@ void MainWindow::setupHomePage()
         refreshDiscoveredRooms();
         ui->networkStatusLabel->setText(QStringLiteral("状态：准备扫描"));
         ui->stackedWidget->setCurrentWidget(ui->networkPage);
+    });
+
+    connect(ui->settingsButton, &QPushButton::clicked, this, [this]() {
+        const bool profileChanged = showProfileSettingsDialog(this, &localAccountName_, &localAvatarPath_);
+        if (profileChanged) {
+            networkManager_->setPlayerName(localAccountName_);
+            networkManager_->setAvatarData(encodeAvatarForNetwork(localAvatarPath_));
+            gameServer_->setHostAvatarData(encodeAvatarForNetwork(localAvatarPath_));
+            if (currentMode_ == GameMode::OnlineHost && gameServer_ != nullptr && gameServer_->isListening()) {
+                gameServer_->setHostName(localAccountName_);
+                refreshDiscoveredRooms();
+            }
+            refreshGameInfo();
+            refreshOnlineIdentityLabels();
+        }
     });
 
     connect(ui->exitButton, &QPushButton::clicked, this, [this]() {
@@ -737,7 +1031,8 @@ void MainWindow::setupNetworkPage()
         humanSide_ = hostSide;
         gameServer_->setHostSide(hostSide);
 
-        gameServer_->setHostName(QStringLiteral("本地主机"));
+        gameServer_->setHostName(localAccountName_);
+        gameServer_->setHostAvatarData(encodeAvatarForNetwork(localAvatarPath_));
         gameServer_->setBoardSize(controller_->boardSize());
         gameServer_->setCurrentMode(GameMode::OnlineHost);
         gameServer_->setDiscoveryPort(gomoku_config::kDefaultDiscoveryPort);
@@ -892,18 +1187,27 @@ void MainWindow::refreshGameInfo()
     } else {
         ui->modeLabel->setText(QStringLiteral("当前模式：%1").arg(modeText(controller_->gameMode())));
     }
-    ui->playerLabel->setText(QStringLiteral("当前玩家：%1").arg(playerText(currentColor)));
+    const bool currentIsLocal = onlineMode && currentColor == pieceColorForSide(humanSide_);
+    const bool currentIsRemote = onlineMode && !currentIsLocal;
+    const QString currentName = currentIsLocal
+        ? localAccountName_
+        : (remoteAccountName_.isEmpty() ? QStringLiteral("对方玩家") : remoteAccountName_);
+    if (onlineMode) {
+        ui->playerLabel->setText(QStringLiteral("当前玩家：%1 | %2")
+                                     .arg(playerText(currentColor), currentName));
+    } else {
+        ui->playerLabel->setText(QStringLiteral("当前玩家：%1").arg(playerText(currentColor)));
+    }
     ui->stepLabel->setText(QStringLiteral("当前步数：%1").arg(controller_->moveHistory().size()));
     ui->statusLabel->setText(QStringLiteral("状态：等待落子"));
 
-    const QString iconPath = playerIconPath(currentColor);
-    if (!iconPath.isEmpty()) {
-        QPixmap icon(iconPath);
-        ui->playerIconLabel->setPixmap(icon.scaled(ui->playerIconLabel->size(),
-                                                   Qt::KeepAspectRatio,
-                                                   Qt::SmoothTransformation));
+    if (currentIsRemote) {
+        ui->playerIconLabel->setPixmap(loadAvatarPixmapFromBytes(remoteAvatarBytes_, ui->playerIconLabel->size()));
     } else {
-        ui->playerIconLabel->clear();
+        const QString avatarPath = QFileInfo::exists(localAvatarPath_)
+            ? localAvatarPath_
+            : defaultAvatarResourcePath();
+        ui->playerIconLabel->setPixmap(loadAvatarPixmap(avatarPath, ui->playerIconLabel->size()));
     }
 }
 
@@ -1065,3 +1369,5 @@ void MainWindow::showGameOverPrompt(const QString &title, const QString &message
         statusBar()->showMessage(QStringLiteral("返回首页"), 2000);
     }
 }
+
+
