@@ -87,6 +87,26 @@ MainWindow::MainWindow(QWidget *parent)
     , gameServer_(new GameServer(this))
 {
     ui->setupUi(this);
+    ui->homePage->setStyleSheet(
+        "QWidget#homePage {"
+        "border-image: url(:/assets/home/home_hero_bg.png) 0 0 0 0 stretch stretch;"
+        "}"
+        "QLabel#titleLabel, QLabel#subtitleLabel {"
+        "color: #f5f7ef;"
+        "}"
+        "QPushButton {"
+        "background-color: rgba(18, 42, 30, 0.34);"
+        "color: #f7fbf4;"
+        "border: 1px solid rgba(255, 255, 255, 0.28);"
+        "border-radius: 14px;"
+        "padding: 10px 18px;"
+        "}"
+        "QPushButton:hover {"
+        "background-color: rgba(18, 42, 30, 0.46);"
+        "}"
+        "QPushButton:pressed {"
+        "background-color: rgba(18, 42, 30, 0.58);"
+        "}");
     resize(gomoku_config::kMainWindowWidth, gomoku_config::kMainWindowHeight);
     setMinimumSize(gomoku_config::kMainWindowMinWidth, gomoku_config::kMainWindowMinHeight);
     setWindowTitle(QStringLiteral("局域网智能五子棋"));
