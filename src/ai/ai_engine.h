@@ -11,21 +11,25 @@ public:
     AIEngine();
 
     void setDifficulty(AIDifficulty difficulty);
-    void setStyle(AIStyle style);
     void setSearchDepth(int depth);
 
     AIDifficulty difficulty() const;
-    AIStyle style() const;
     int searchDepth() const;
 
     MoveInfo chooseMove(const QVector<QVector<PieceColor>> &board, PieceColor aiColor) const;
 
 private:
     QVector<BoardPosition> generateCandidates(const QVector<QVector<PieceColor>> &board) const;
-    int searchBestScore(const QVector<QVector<PieceColor>> &board, PieceColor aiColor, int depth) const;
+    int evaluateState(const QVector<QVector<PieceColor>> &board, PieceColor aiColor) const;
+    int negamax(QVector<QVector<PieceColor>> &board,
+                PieceColor currentColor,
+                PieceColor aiColor,
+                int depth,
+                int alpha,
+                int beta,
+                int ply) const;
 
     BoardEvaluator evaluator_;
     AIDifficulty difficulty_ = AIDifficulty::Normal;
-    AIStyle style_ = AIStyle::Balanced;
     int searchDepth_ = 2;
 };

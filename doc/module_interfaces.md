@@ -78,7 +78,6 @@ src/data
 - `PieceColor`
 - `GameMode`
 - `PlayerSide`
-- `AIStyle`
 - `AIDifficulty`
 - `BoardPosition`
 - `MoveInfo`
@@ -91,7 +90,7 @@ src/data
 - `MoveInfo::color`：落子颜色
 - `MoveInfo::stepNumber`：步数
 - `MoveInfo::score`：局面评分
-- `GameSettings`：界面设置、AI 设置和棋盘设置的统一载体
+- `GameSettings`：界面设置、AI 难度和棋盘设置的统一载体
 
 约定：
 
@@ -278,7 +277,7 @@ src/data
 约定：
 
 - 评分逻辑只关注棋盘，不关心 UI
-- 评分应支持进攻、防守和平衡三种风格
+- 评分结果主要用于 AI 难度区分和候选点筛选
 
 ### 5.2 `AIEngine`
 
@@ -296,10 +295,8 @@ src/data
 
 - `AIEngine()`
 - `void setDifficulty(AIDifficulty difficulty)`
-- `void setStyle(AIStyle style)`
 - `void setSearchDepth(int depth)`
 - `AIDifficulty difficulty() const`
-- `AIStyle style() const`
 - `int searchDepth() const`
 - `MoveInfo chooseMove(const QVector<QVector<PieceColor>> &board, PieceColor aiColor) const`
 

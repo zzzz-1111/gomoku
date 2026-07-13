@@ -22,13 +22,6 @@ enum class PlayerSide
     White
 };
 
-enum class AIStyle
-{
-    Attack,
-    Defense,
-    Balanced
-};
-
 enum class AIDifficulty
 {
     Easy,
@@ -60,7 +53,6 @@ struct GameSettings
     GameMode mode = GameMode::LocalTwoPlayer;
     PlayerSide humanSide = PlayerSide::Black;
     AIDifficulty aiDifficulty = AIDifficulty::Normal;
-    AIStyle aiStyle = AIStyle::Balanced;
     bool showSuggestion = true;
     bool enableSound = true;
     int boardSize = 15;

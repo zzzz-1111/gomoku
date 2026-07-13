@@ -1,6 +1,8 @@
 #include "game_controller.h"
 #include "game_rule.h"
 
+#include <QTimer>
+
 GameController::GameController(QObject *parent)
     : QObject(parent)
 {
@@ -24,6 +26,7 @@ void GameController::resetGame()
 
     emit boardChanged();
     emit currentPlayerChanged(currentPlayer_);
+    requestCurrentTurnAction();
 }
 
 void GameController::setGameMode(GameMode mode)
@@ -60,6 +63,21 @@ PlayerSide GameController::humanSide() const
     return humanSide_;
 }
 
+void GameController::setTurnActor(PieceColor color, std::unique_ptr<ITurnActor> actor)
+{
+    if (color == PieceColor::Black) {
+        blackActor_ = std::move(actor);
+    } else if (color == PieceColor::White) {
+        whiteActor_ = std::move(actor);
+    }
+}
+
+void GameController::clearTurnActors()
+{
+    blackActor_.reset();
+    whiteActor_.reset();
+}
+
 void GameController::setCurrentPlayer(PieceColor color)
 {
     if (color != PieceColor::Black && color != PieceColor::White) {
@@ -72,6 +90,7 @@ void GameController::setCurrentPlayer(PieceColor color)
 
     currentPlayer_ = color;
     emit currentPlayerChanged(currentPlayer_);
+    requestCurrentTurnAction();
 }
 
 PieceColor GameController::currentPlayer() const
@@ -87,6 +106,19 @@ const QVector<QVector<PieceColor>> &GameController::board() const
 QVector<MoveInfo> GameController::moveHistory() const
 {
     return moveHistory_;
+}
+
+GameStateSnapshot GameController::snapshot() const
+{
+    GameStateSnapshot state;
+    state.boardSize = boardSize_;
+    state.mode = mode_;
+    state.humanSide = humanSide_;
+    state.currentPlayer = currentPlayer_;
+    state.gameOver = gameOver_;
+    state.board = board_;
+    state.moveHistory = moveHistory_;
+    return state;
 }
 
 bool GameController::canPlaceAt(int x, int y) const
@@ -116,30 +148,8 @@ bool GameController::placeStone(int x, int y)
 
     switchTurn();
     emit currentPlayerChanged(currentPlayer_);
+    requestCurrentTurnAction();
     return true;
-}
-
-bool GameController::undoLastMove()
-{
-    if (moveHistory_.isEmpty()) {
-        return false;
-    }
-
-    const MoveInfo lastMove = moveHistory_.takeLast();
-    if (GameRule::isInsideBoard(lastMove.position.x, lastMove.position.y, boardSize_)) {
-        board_[lastMove.position.y][lastMove.position.x] = PieceColor::Empty;
-    }
-
-    currentPlayer_ = lastMove.color;
-    gameOver_ = false;
-    emit boardChanged();
-    emit currentPlayerChanged(currentPlayer_);
-    return true;
-}
-
-bool GameController::canUndo() const
-{
-    return !moveHistory_.isEmpty();
 }
 
 void GameController::switchTurn()
@@ -172,4 +182,41 @@ bool GameController::checkGameOver(int x, int y)
     }
 
     return false;
+}
+
+ITurnActor *GameController::turnActorFor(PieceColor color) const
+{
+    if (color == PieceColor::Black) {
+        return blackActor_.get();
+    }
+    if (color == PieceColor::White) {
+        return whiteActor_.get();
+    }
+    return nullptr;
+}
+
+void GameController::requestCurrentTurnAction()
+{
+    if (gameOver_) {
+        return;
+    }
+
+    ITurnActor *actor = turnActorFor(currentPlayer_);
+    if (actor == nullptr || !actor->isAutomatic()) {
+        return;
+    }
+
+    const PieceColor side = currentPlayer_;
+    QTimer::singleShot(0, this, [this, side]() {
+        if (gameOver_ || currentPlayer_ != side) {
+            return;
+        }
+
+        ITurnActor *actorNow = turnActorFor(side);
+        if (actorNow == nullptr || !actorNow->isAutomatic()) {
+            return;
+        }
+
+        actorNow->onTurn(*this, snapshot(), side);
+    });
 }

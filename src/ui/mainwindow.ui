@@ -28,10 +28,10 @@
      <number>0</number>
     </property>
     <item>
-      <widget class="QStackedWidget" name="stackedWidget">
-       <property name="currentIndex">
-       <number>0</number>
-       </property>
+     <widget class="QStackedWidget" name="stackedWidget">
+      <property name="currentIndex">
+       <number>1</number>
+      </property>
       <widget class="QWidget" name="homePage">
        <layout class="QVBoxLayout" name="homeLayout">
         <property name="spacing">
@@ -283,10 +283,10 @@
                  <height>640</height>
                 </size>
                </property>
-                <property name="styleSheet">
-                 <string notr="true">background: #f2dfb9; border: 2px solid #8b6a3d; border-radius: 10px;</string>
-                </property>
-               </widget>
+               <property name="styleSheet">
+                <string notr="true">background: #f2dfb9; border: 2px solid #8b6a3d; border-radius: 10px;</string>
+               </property>
+              </widget>
              </item>
             </layout>
            </widget>

@@ -14,10 +14,16 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network Sql)
 
 set(PROJECT_SOURCES
         src/app/main.cpp
+        src/ai/ai_engine.cpp
+        src/ai/board_evaluator.cpp
+        src/ai/ai_turn_actor.cpp
         src/core/game_controller.cpp
         src/core/game_controller.h
         src/core/game_rule.cpp
         src/core/game_rule.h
+        src/core/game_state.h
+        src/core/turn_actor.h
+        src/core/human_turn_actor.h
         src/ui/chessboard_widget.cpp
         src/ui/chessboard_widget.h
         src/ui/mainwindow.cpp

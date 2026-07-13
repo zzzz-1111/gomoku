@@ -1,6 +1,5 @@
 #include "chessboard_widget.h"
 
-#include <QImage>
 #include <QLinearGradient>
 #include <QMouseEvent>
 #include <QPainter>
@@ -13,7 +12,6 @@
 #include <QtGlobal>
 
 #include <algorithm>
-#include <queue>
 
 namespace {
 
@@ -37,69 +35,6 @@ bool isStarPoint(int boardSize, int x, int y)
     return (x == near || x == center || x == far) && (y == near || y == center || y == far);
 }
 
-QPixmap makeTransparentPixmap(const QString &path)
-{
-    QImage image(path);
-    if (image.isNull()) {
-        return {};
-    }
-
-    image = image.convertToFormat(QImage::Format_ARGB32);
-    const QColor background = image.pixelColor(0, 0);
-    auto isBackground = [&](const QColor &color) {
-        return color.alpha() > 0
-            && qAbs(color.red() - background.red()) <= 25
-            && qAbs(color.green() - background.green()) <= 25
-            && qAbs(color.blue() - background.blue()) <= 25;
-    };
-
-    const int width = image.width();
-    const int height = image.height();
-    QVector<uchar> visited(width * height, 0);
-    auto indexOf = [width](int x, int y) {
-        return y * width + x;
-    };
-
-    std::queue<QPoint> queue;
-    auto tryPush = [&](int x, int y) {
-        if (x < 0 || y < 0 || x >= width || y >= height) {
-            return;
-        }
-        const int index = indexOf(x, y);
-        if (visited[index]) {
-            return;
-        }
-        const QColor color = image.pixelColor(x, y);
-        if (!isBackground(color)) {
-            return;
-        }
-        visited[index] = 1;
-        queue.push(QPoint(x, y));
-    };
-
-    for (int x = 0; x < width; ++x) {
-        tryPush(x, 0);
-        tryPush(x, height - 1);
-    }
-    for (int y = 0; y < height; ++y) {
-        tryPush(0, y);
-        tryPush(width - 1, y);
-    }
-
-    while (!queue.empty()) {
-        const QPoint point = queue.front();
-        queue.pop();
-        image.setPixelColor(point.x(), point.y(), QColor(0, 0, 0, 0));
-
-        tryPush(point.x() + 1, point.y());
-        tryPush(point.x() - 1, point.y());
-        tryPush(point.x(), point.y() + 1);
-        tryPush(point.x(), point.y() - 1);
-    }
-
-    return QPixmap::fromImage(image);
-}
-
 QPixmap fallbackStonePixmap(PieceColor color, int diameter)
 {
     QPixmap pixmap(diameter, diameter);
@@ -111,14 +46,14 @@ QPixmap fallbackStonePixmap(PieceColor color, int diameter)
     const QPointF center(diameter / 2.0, diameter / 2.0);
     QRadialGradient gradient(center, diameter / 2.0);
     if (color == PieceColor::Black) {
-        gradient.setColorAt(0.0, QColor("#666666"));
-        gradient.setColorAt(1.0, QColor("#111111"));
+        gradient.setColorAt(0.0, QColor(102, 102, 102));
+        gradient.setColorAt(1.0, QColor(17, 17, 17));
     } else {
-        gradient.setColorAt(0.0, QColor("#ffffff"));
-        gradient.setColorAt(1.0, QColor("#d0d0d0"));
+        gradient.setColorAt(0.0, QColor(255, 255, 255));
+        gradient.setColorAt(1.0, QColor(208, 208, 208));
     }
     painter.setBrush(gradient);
-    painter.setPen(QPen(QColor("#5c4528"), 1));
+    painter.setPen(QPen(QColor(92, 69, 40), 1));
     painter.drawEllipse(QRectF(1, 1, diameter - 2, diameter - 2));
 
     return pixmap;
@@ -129,8 +64,8 @@ QPixmap fallbackStonePixmap(PieceColor color, int diameter)
 ChessBoardWidget::ChessBoardWidget(QWidget *parent)
     : QWidget(parent)
     , boardTexture_(":/assets/board/board_texture.png")
-    , blackStone_(makeTransparentPixmap(":/assets/board/stone_black.png"))
-    , whiteStone_(makeTransparentPixmap(":/assets/board/stone_white.png"))
+    , blackStone_(":/assets/board/stone_black.png")
+    , whiteStone_(":/assets/board/stone_white.png")
 {
     setMouseTracking(true);
     setAttribute(Qt::WA_Hover, true);
@@ -216,16 +151,16 @@ void ChessBoardWidget::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::TextAntialiasing, true);
 
     const QRect board = boardRect();
-    painter.fillRect(rect(), QColor("#f5f0e6"));
+    painter.fillRect(rect(), QColor(245, 240, 230));
 
     if (!boardTexture_.isNull()) {
         painter.drawPixmap(board, boardTexture_);
     } else {
         QLinearGradient bgGradient(board.topLeft(), board.bottomRight());
-        bgGradient.setColorAt(0.0, QColor("#ead0a5"));
-        bgGradient.setColorAt(1.0, QColor("#c99962"));
+        bgGradient.setColorAt(0.0, QColor(234, 208, 165));
+        bgGradient.setColorAt(1.0, QColor(201, 153, 98));
         painter.setBrush(bgGradient);
-        painter.setPen(QPen(QColor("#8b6738"), 2));
+        painter.setPen(QPen(QColor(139, 103, 56), 2));
         painter.drawRoundedRect(board.adjusted(-8, -8, 8, 8), 12, 12);
     }
 
@@ -242,7 +177,7 @@ void ChessBoardWidget::paintEvent(QPaintEvent *event)
         painter.drawLine(QPoint(topLeft.x(), y), QPoint(bottomRight.x(), y));
     }
 
-    painter.setBrush(QColor("#5a3d20"));
+    painter.setBrush(QColor(90, 61, 32));
     painter.setPen(Qt::NoPen);
     for (int y = 0; y < boardSize_; ++y) {
         for (int x = 0; x < boardSize_; ++x) {
@@ -257,7 +192,7 @@ void ChessBoardWidget::paintEvent(QPaintEvent *event)
     QFont labelFont = font();
     labelFont.setPointSize(std::max(8, font().pointSize() - 1));
     painter.setFont(labelFont);
-    painter.setPen(QColor("#4d3820"));
+    painter.setPen(QColor(77, 56, 32));
 
     for (int i = 0; i < boardSize_; ++i) {
         const QPoint columnPoint = cellToPoint(i, 0);
@@ -284,11 +219,11 @@ void ChessBoardWidget::paintEvent(QPaintEvent *event)
         painter.drawEllipse(center, radius, radius);
     };
 
-    drawMarker(lastMove_, QColor("#2c7be5"), spacing / 3);
-    drawMarker(suggestedMove_, QColor("#d97706"), spacing / 4);
+    drawMarker(lastMove_, QColor(44, 123, 229), spacing / 3);
+    drawMarker(suggestedMove_, QColor(217, 119, 6), spacing / 4);
 
     if (hasHoverCell_) {
-        drawMarker(hoverCell_, QColor("#2a9d8f"), spacing / 4);
+        drawMarker(hoverCell_, QColor(42, 157, 143), spacing / 4);
     }
 
     const int stoneDiameter = std::max(24, spacing - 6);
