@@ -2,10 +2,14 @@
 
 #include "ui_mainwindow.h"
 
+#include <QAbstractItemView>
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QIcon>
+#include <QListWidget>
+#include <QListWidgetItem>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -13,8 +17,11 @@
 
 #include "src/ai/ai_turn_actor.h"
 #include "src/common/config.h"
-#include "src/core/game_controller.h"
-#include "src/core/human_turn_actor.h"
+#include "src/core/actor/human_turn_actor.h"
+#include "src/core/controller/game_controller.h"
+#include "src/network/game_room.h"
+#include "src/network/game_server.h"
+#include "src/network/network_manager.h"
 #include "src/ui/chessboard_widget.h"
 
 namespace {
@@ -56,17 +63,34 @@ QString difficultyName(AIDifficulty difficulty)
     return QStringLiteral("未知");
 }
 
+QString roomSummaryText(const GameRoom &room)
+{
+    const QString modeText = room.currentMode() == GameMode::OnlineHost
+        ? QStringLiteral("主机")
+        : QStringLiteral("客户端");
+    return QStringLiteral("%1 | %2 | %3:%4 | %5路 | %6")
+        .arg(room.roomId().isEmpty() ? QStringLiteral("未命名房间") : room.roomId())
+        .arg(room.hostName().isEmpty() ? QStringLiteral("未知主机") : room.hostName())
+        .arg(room.hostAddress().isEmpty() ? QStringLiteral("0.0.0.0") : room.hostAddress())
+        .arg(room.hostPort())
+        .arg(room.boardSize())
+        .arg(modeText);
 }
+
+} // namespace
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , controller_(new GameController(this))
+    , networkManager_(new NetworkManager(this))
+    , gameServer_(new GameServer(this))
 {
     ui->setupUi(this);
     resize(gomoku_config::kMainWindowWidth, gomoku_config::kMainWindowHeight);
     setMinimumSize(gomoku_config::kMainWindowMinWidth, gomoku_config::kMainWindowMinHeight);
-    setWindowTitle(QStringLiteral("五子棋"));
+    setWindowTitle(QStringLiteral("局域网智能五子棋"));
+    setWindowIcon(QIcon(":/assets/app/app_icon.png"));
 
     if (ui->boardPlaceholder->layout() == nullptr) {
         auto *boardLayout = new QVBoxLayout(ui->boardPlaceholder);
@@ -117,12 +141,59 @@ MainWindow::MainWindow(QWidget *parent)
 
     setupHomePage();
     setupGamePage();
+    setupNetworkPage();
+
+    connect(networkManager_, &NetworkManager::roomsChanged, this, &MainWindow::refreshDiscoveredRooms);
+    connect(networkManager_, &NetworkManager::roomDiscovered, this, [this](const GameRoom &) {
+        refreshDiscoveredRooms();
+    });
+    connect(networkManager_, &NetworkManager::discoveryStarted, this, [this](quint16 port) {
+        ui->networkStatusLabel->setText(QStringLiteral("状态：正在扫描端口 %1").arg(port));
+        statusBar()->showMessage(QStringLiteral("已开始扫描局域网房间"), 2000);
+    });
+    connect(networkManager_, &NetworkManager::discoveryStopped, this, [this]() {
+        ui->networkStatusLabel->setText(QStringLiteral("状态：扫描已停止"));
+    });
+    connect(networkManager_, &NetworkManager::connectedToServer, this, [this]() {
+        ui->networkStatusLabel->setText(QStringLiteral("状态：已连接到主机"));
+        statusBar()->showMessage(QStringLiteral("已连接到局域网主机"), 2000);
+    });
+    connect(networkManager_, &NetworkManager::disconnectedFromServer, this, [this]() {
+        ui->networkStatusLabel->setText(QStringLiteral("状态：与主机断开"));
+    });
+    connect(networkManager_, &NetworkManager::connectionError, this, [this](const QString &errorText) {
+        ui->networkStatusLabel->setText(QStringLiteral("状态：%1").arg(errorText));
+        statusBar()->showMessage(errorText, 4000);
+    });
+
+    connect(gameServer_, &GameServer::serverStarted, this, [this](quint16 port) {
+        ui->hostInfoLabel->setText(QStringLiteral("主机：已启动，端口 %1").arg(port));
+        ui->hostButton->setText(QStringLiteral("停止主机"));
+        ui->networkStatusLabel->setText(QStringLiteral("状态：主机已启动"));
+        statusBar()->showMessage(QStringLiteral("局域网主机已启动"), 2000);
+        refreshDiscoveredRooms();
+    });
+    connect(gameServer_, &GameServer::serverStopped, this, [this]() {
+        ui->hostInfoLabel->setText(QStringLiteral("主机：未启动"));
+        ui->hostButton->setText(QStringLiteral("创建主机"));
+        ui->networkStatusLabel->setText(QStringLiteral("状态：主机已停止"));
+    });
+    connect(gameServer_, &GameServer::serverError, this, [this](const QString &errorText) {
+        ui->networkStatusLabel->setText(QStringLiteral("状态：%1").arg(errorText));
+        statusBar()->showMessage(errorText, 4000);
+    });
+    connect(gameServer_, &GameServer::roomBroadcasted, this, [this](const GameRoom &) {
+        refreshDiscoveredRooms();
+    });
+
     configureTurnActors(GameMode::LocalTwoPlayer, PlayerSide::Black, AIDifficulty::Normal);
     controller_->setGameMode(GameMode::LocalTwoPlayer);
     controller_->setHumanSide(PlayerSide::Black);
     controller_->resetGame();
-    ui->stackedWidget->setCurrentIndex(gomoku_config::kHomePageIndex);
+
+    ui->stackedWidget->setCurrentWidget(ui->homePage);
     refreshGameInfo();
+    refreshDiscoveredRooms();
 }
 
 MainWindow::~MainWindow()
@@ -185,10 +256,10 @@ void MainWindow::startGame(GameMode mode, PlayerSide humanSide, AIDifficulty aiD
     controller_->setHumanSide(humanSide);
     configureTurnActors(mode, humanSide, aiDifficulty);
     controller_->resetGame();
-    ui->stackedWidget->setCurrentIndex(gomoku_config::kGamePageIndex);
+    ui->stackedWidget->setCurrentWidget(ui->gamePage);
     syncBoardFromController();
     refreshGameInfo();
-    statusBar()->showMessage(QStringLiteral("已进入%1").arg(modeText(mode)), 2000);
+    statusBar()->showMessage(QStringLiteral("已进入 %1").arg(modeText(mode)), 2000);
 }
 
 void MainWindow::setupHomePage()
@@ -212,7 +283,12 @@ void MainWindow::setupHomePage()
     });
 
     connect(ui->settingsButton, &QPushButton::clicked, this, [this]() {
-        QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("局域网模式后续接入网络模块"));
+        if (!networkManager_->isDiscovering()) {
+            networkManager_->startDiscovery();
+        }
+        refreshDiscoveredRooms();
+        ui->networkStatusLabel->setText(QStringLiteral("状态：准备扫描房间"));
+        ui->stackedWidget->setCurrentWidget(ui->networkPage);
     });
 
     connect(ui->exitButton, &QPushButton::clicked, this, [this]() {
@@ -223,9 +299,79 @@ void MainWindow::setupHomePage()
 void MainWindow::setupGamePage()
 {
     connect(ui->backButton, &QPushButton::clicked, this, [this]() {
-        ui->stackedWidget->setCurrentIndex(gomoku_config::kHomePageIndex);
+        ui->stackedWidget->setCurrentWidget(ui->homePage);
         statusBar()->showMessage(QStringLiteral("已返回首页"), 2000);
     });
+}
+
+void MainWindow::setupNetworkPage()
+{
+    ui->roomListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+
+    connect(ui->networkBackButton, &QPushButton::clicked, this, [this]() {
+        networkManager_->stopDiscovery();
+        ui->stackedWidget->setCurrentWidget(ui->homePage);
+        statusBar()->showMessage(QStringLiteral("已返回首页"), 2000);
+    });
+
+    connect(ui->discoverButton, &QPushButton::clicked, this, [this]() {
+        if (networkManager_->isDiscovering()) {
+            networkManager_->stopDiscovery();
+        }
+        if (networkManager_->startDiscovery()) {
+            ui->networkStatusLabel->setText(QStringLiteral("状态：正在扫描房间"));
+            refreshDiscoveredRooms();
+        }
+    });
+
+    connect(ui->refreshRoomsButton, &QPushButton::clicked, this, [this]() {
+        refreshDiscoveredRooms();
+    });
+
+    connect(ui->hostButton, &QPushButton::clicked, this, [this]() {
+        if (gameServer_->isListening()) {
+            gameServer_->stopListening();
+            return;
+        }
+
+        gameServer_->setHostName(QStringLiteral("本机主机"));
+        gameServer_->setBoardSize(controller_->boardSize());
+        gameServer_->setCurrentMode(GameMode::OnlineHost);
+        gameServer_->setDiscoveryPort(gomoku_config::kDefaultDiscoveryPort);
+        if (!gameServer_->startListening(gomoku_config::kDefaultPort)) {
+            ui->hostInfoLabel->setText(QStringLiteral("主机：启动失败"));
+        }
+    });
+
+    connect(ui->joinRoomButton, &QPushButton::clicked, this, [this]() {
+        const QList<QListWidgetItem *> items = ui->roomListWidget->selectedItems();
+        if (items.isEmpty()) {
+            statusBar()->showMessage(QStringLiteral("请先选中一个房间"), 2000);
+            return;
+        }
+
+        const QString roomId = items.first()->data(Qt::UserRole).toString();
+        const auto rooms = networkManager_->discoveredRooms();
+        for (const GameRoom &room : rooms) {
+            if (room.roomId() != roomId) {
+                continue;
+            }
+
+            if (networkManager_->connectToRoom(room)) {
+                ui->networkStatusLabel->setText(QStringLiteral("状态：正在连接 %1").arg(roomSummaryText(room)));
+            }
+            return;
+        }
+
+        statusBar()->showMessage(QStringLiteral("房间已失效，请刷新后再试"), 2000);
+    });
+
+    connect(ui->roomListWidget, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *) {
+        ui->joinRoomButton->click();
+    });
+
+    ui->networkStatusLabel->setText(QStringLiteral("状态：等待扫描"));
+    ui->hostInfoLabel->setText(QStringLiteral("主机：未启动"));
 }
 
 bool MainWindow::showAiSettingsDialog(PlayerSide *humanSide, AIDifficulty *aiDifficulty)
@@ -288,6 +434,33 @@ void MainWindow::refreshGameInfo()
     ui->statusLabel->setText(QStringLiteral("状态：等待落子"));
 }
 
+void MainWindow::refreshDiscoveredRooms()
+{
+    if (ui == nullptr || networkManager_ == nullptr) {
+        return;
+    }
+
+    const QString selectedRoomId = ui->roomListWidget->currentItem() != nullptr
+        ? ui->roomListWidget->currentItem()->data(Qt::UserRole).toString()
+        : QString();
+
+    ui->roomListWidget->clear();
+    const auto rooms = networkManager_->discoveredRooms();
+    for (const GameRoom &room : rooms) {
+        auto *item = new QListWidgetItem(roomSummaryText(room), ui->roomListWidget);
+        item->setData(Qt::UserRole, room.roomId());
+        if (!selectedRoomId.isEmpty() && selectedRoomId == room.roomId()) {
+            item->setSelected(true);
+        }
+    }
+
+    if (rooms.isEmpty()) {
+        ui->networkStatusLabel->setText(QStringLiteral("状态：未发现房间"));
+    } else {
+        ui->networkStatusLabel->setText(QStringLiteral("状态：发现 %1 个房间").arg(rooms.size()));
+    }
+}
+
 void MainWindow::syncBoardFromController()
 {
     if (boardWidget_ == nullptr || controller_ == nullptr) {
@@ -322,7 +495,7 @@ void MainWindow::showGameOverPrompt(const QString &title, const QString &message
 
     if (box.clickedButton() == restartButton) {
         controller_->resetGame();
-        ui->stackedWidget->setCurrentIndex(gomoku_config::kGamePageIndex);
+        ui->stackedWidget->setCurrentWidget(ui->gamePage);
         syncBoardFromController();
         refreshGameInfo();
         statusBar()->showMessage(QStringLiteral("已重新开始"), 2000);
@@ -330,7 +503,7 @@ void MainWindow::showGameOverPrompt(const QString &title, const QString &message
     }
 
     if (box.clickedButton() == homeButton) {
-        ui->stackedWidget->setCurrentIndex(gomoku_config::kHomePageIndex);
+        ui->stackedWidget->setCurrentWidget(ui->homePage);
         statusBar()->showMessage(QStringLiteral("已返回首页"), 2000);
     }
 }

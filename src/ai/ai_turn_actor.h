@@ -1,6 +1,6 @@
 #pragma once
 
-#include "src/core/turn_actor.h"
+#include "src/core/actor/turn_actor.h"
 
 class AIEngine;
 class ITurnContext;

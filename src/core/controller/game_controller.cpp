@@ -1,5 +1,5 @@
 #include "game_controller.h"
-#include "game_rule.h"
+#include "src/core/rule/game_rule.h"
 
 GameController::GameController(QObject *parent)
     : QObject(parent)

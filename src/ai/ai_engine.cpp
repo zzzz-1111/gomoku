@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <limits>
 
-#include "src/core/game_rule.h"
+#include "src/core/rule/game_rule.h"
 
 namespace {
 

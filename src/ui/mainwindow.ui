@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>五子棋</string>
+   <string>局域网智能五子棋</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -30,7 +30,7 @@
     <item>
      <widget class="QStackedWidget" name="stackedWidget">
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="homePage">
        <layout class="QVBoxLayout" name="homeLayout">
@@ -68,7 +68,7 @@
            <string notr="true">font-size: 32px; font-weight: 700; color: #1f3a2b;</string>
           </property>
           <property name="text">
-           <string>局域网智能五子棋竞技系统</string>
+           <string>局域网智能五子棋</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -177,6 +177,253 @@
            </size>
           </property>
          </spacer>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="networkPage">
+       <layout class="QVBoxLayout" name="networkRootLayout">
+        <property name="spacing">
+         <number>16</number>
+        </property>
+        <property name="leftMargin">
+         <number>24</number>
+        </property>
+        <property name="topMargin">
+         <number>24</number>
+        </property>
+        <property name="rightMargin">
+         <number>24</number>
+        </property>
+        <property name="bottomMargin">
+         <number>24</number>
+        </property>
+        <item>
+         <layout class="QHBoxLayout" name="networkHeaderLayout">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="networkTitleLabel">
+            <property name="styleSheet">
+             <string notr="true">font-size: 24px; font-weight: 700; color: #1f3a2b;</string>
+            </property>
+            <property name="text">
+             <string>局域网对战</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="networkHeaderSpacer">
+            <property name="orientation">
+             <enum>Qt::Orientation::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="networkBackButton">
+            <property name="minimumSize">
+             <size>
+              <width>120</width>
+              <height>40</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>返回首页</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="networkContentLayout">
+          <property name="spacing">
+           <number>20</number>
+          </property>
+          <item>
+           <widget class="QFrame" name="roomListFrame">
+            <property name="frameShape">
+             <enum>QFrame::Shape::StyledPanel</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Shadow::Raised</enum>
+            </property>
+            <layout class="QVBoxLayout" name="roomListLayout">
+             <property name="leftMargin">
+              <number>16</number>
+             </property>
+             <property name="topMargin">
+              <number>16</number>
+             </property>
+             <property name="rightMargin">
+              <number>16</number>
+             </property>
+             <property name="bottomMargin">
+              <number>16</number>
+             </property>
+             <item>
+              <widget class="QLabel" name="roomListTitleLabel">
+               <property name="styleSheet">
+                <string notr="true">font-size: 16px; font-weight: 600; color: #1f3a2b;</string>
+               </property>
+               <property name="text">
+                <string>发现的房间</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QListWidget" name="roomListWidget">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>420</height>
+                </size>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="refreshRoomsButton">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>42</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>刷新房间</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QFrame" name="networkControlFrame">
+            <property name="minimumSize">
+             <size>
+              <width>320</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="frameShape">
+             <enum>QFrame::Shape::StyledPanel</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Shadow::Raised</enum>
+            </property>
+            <layout class="QVBoxLayout" name="networkControlLayout">
+             <property name="spacing">
+              <number>12</number>
+             </property>
+             <property name="leftMargin">
+              <number>16</number>
+             </property>
+             <property name="topMargin">
+              <number>16</number>
+             </property>
+             <property name="rightMargin">
+              <number>16</number>
+             </property>
+             <property name="bottomMargin">
+              <number>16</number>
+             </property>
+             <item>
+              <widget class="QLabel" name="networkStatusLabel">
+               <property name="styleSheet">
+                <string notr="true">font-size: 16px; font-weight: 600; color: #1f3a2b;</string>
+               </property>
+               <property name="text">
+                <string>状态：未开始扫描</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="hostInfoLabel">
+               <property name="text">
+                <string>主机：未启动</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="discoverButton">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>44</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>开始扫描</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="hostButton">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>44</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>创建主机</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="joinRoomButton">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>44</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>加入所选房间</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="networkHintLabel">
+               <property name="wordWrap">
+                <bool>true</bool>
+               </property>
+               <property name="text">
+                <string>先扫描局域网里的房间，再选择一个加入；如果你要开房，就先创建主机。</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="networkBottomSpacer">
+               <property name="orientation">
+                <enum>Qt::Orientation::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>20</width>
+                 <height>40</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </widget>

@@ -17,14 +17,22 @@ set(PROJECT_SOURCES
         src/ai/ai_engine.cpp
         src/ai/board_evaluator.cpp
         src/ai/ai_turn_actor.cpp
-        src/core/game_controller.cpp
-        src/core/game_controller.h
-        src/core/game_rule.cpp
-        src/core/game_rule.h
-        src/core/game_state.h
-        src/core/turn_context.h
-        src/core/turn_actor.h
-        src/core/human_turn_actor.h
+        src/core/controller/game_controller.cpp
+        src/core/controller/game_controller.h
+        src/core/rule/game_rule.cpp
+        src/core/rule/game_rule.h
+        src/core/runtime/game_state.h
+        src/core/runtime/turn_context.h
+        src/core/actor/turn_actor.h
+        src/core/actor/human_turn_actor.h
+        src/network/protocol.cpp
+        src/network/game_room.cpp
+        src/network/game_server.cpp
+        src/network/network_manager.cpp
+        src/network/protocol.h
+        src/network/game_room.h
+        src/network/game_server.h
+        src/network/network_manager.h
         src/ui/chessboard_widget.cpp
         src/ui/chessboard_widget.h
         src/ui/mainwindow.cpp

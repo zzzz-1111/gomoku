@@ -1,7 +1,7 @@
 #include "ai_turn_actor.h"
 
 #include "ai_engine.h"
-#include "src/core/turn_context.h"
+#include "src/core/runtime/turn_context.h"
 
 struct AiTurnActor::Impl
 {

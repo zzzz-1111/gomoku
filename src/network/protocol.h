@@ -12,9 +12,6 @@ enum class MessageType
     GameStart,
     Move,
     MoveResult,
-    Chat,
-    UndoRequest,
-    UndoResponse,
     RestartRequest,
     GameOver,
     Disconnect
@@ -28,3 +25,5 @@ struct NetworkMessage
 
 QString messageTypeToString(MessageType type);
 MessageType messageTypeFromString(const QString &type);
+QJsonObject networkMessageToJson(const NetworkMessage &message);
+NetworkMessage networkMessageFromJson(const QJsonObject &object);

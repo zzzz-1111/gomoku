@@ -14,6 +14,8 @@ QT_END_NAMESPACE
 
 class ChessBoardWidget;
 class GameController;
+class GameServer;
+class NetworkManager;
 
 class MainWindow : public QMainWindow
 {
@@ -28,8 +30,10 @@ private:
     void configureTurnActors(GameMode mode, PlayerSide humanSide, AIDifficulty aiDifficulty);
     void setupHomePage();
     void setupGamePage();
+    void setupNetworkPage();
     bool showAiSettingsDialog(PlayerSide *humanSide, AIDifficulty *aiDifficulty);
     void refreshGameInfo();
+    void refreshDiscoveredRooms();
     void syncBoardFromController();
     void showGameOverPrompt(const QString &title, const QString &message);
     QString modeText(GameMode mode) const;
@@ -38,6 +42,8 @@ private:
     Ui::MainWindow *ui = nullptr;
     ChessBoardWidget *boardWidget_ = nullptr;
     GameController *controller_ = nullptr;
+    NetworkManager *networkManager_ = nullptr;
+    GameServer *gameServer_ = nullptr;
     GameMode currentMode_ = GameMode::LocalTwoPlayer;
     PlayerSide humanSide_ = PlayerSide::Black;
 };

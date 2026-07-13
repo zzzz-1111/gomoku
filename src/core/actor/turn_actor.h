@@ -1,7 +1,7 @@
 #pragma once
 
 #include "src/common/gomoku_types.h"
-#include "src/core/game_state.h"
+#include "src/core/runtime/game_state.h"
 
 class ITurnContext;
 

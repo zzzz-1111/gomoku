@@ -7,9 +7,9 @@
 #include <memory>
 
 #include "src/common/gomoku_types.h"
-#include "src/core/game_state.h"
-#include "src/core/turn_context.h"
-#include "src/core/turn_actor.h"
+#include "src/core/runtime/game_state.h"
+#include "src/core/runtime/turn_context.h"
+#include "src/core/actor/turn_actor.h"
 
 class GameController : public QObject, public ITurnContext
 {

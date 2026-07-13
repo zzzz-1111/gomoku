@@ -20,8 +20,16 @@ src/ui
   └── 棋盘控件
 
 src/core
-  ├── 规则判断
-  └── 对局控制
+  ├── controller
+  │   └── 对局控制
+  ├── rule
+  │   └── 规则判断
+  ├── runtime
+  │   ├── 局面快照
+  │   └── 回合上下文
+  └── actor
+      ├── 回合执行接口
+      └── 人类回合执行
 
 src/ai
   ├── 局面评分
@@ -174,7 +182,7 @@ src/data
 
 文件：
 
-- `src/core/game_rule.h`
+- `src/core/rule/game_rule.h`
 
 职责：
 
@@ -200,7 +208,7 @@ src/data
 
 文件：
 
-- `src/core/turn_context.h`
+- `src/core/runtime/turn_context.h`
 
 职责：
 
@@ -222,13 +230,13 @@ src/data
 
 文件：
 
-- `src/core/game_controller.h`
+- `src/core/controller/game_controller.h`
 
 职责：
 
 - 管理当前棋盘状态
 - 管理当前玩家、模式、回合、历史记录和结束状态
-- 统一处理落子、悔棋、重开和通知 UI 更新
+- 统一处理落子、重开和通知 UI 更新
 
 当前接口：
 
@@ -246,8 +254,6 @@ src/data
 - `QVector<MoveInfo> moveHistory() const`
 - `bool canPlaceAt(int x, int y) const`
 - `bool placeStone(int x, int y)`
-- `bool undoLastMove()`
-- `bool canUndo() const`
 
 信号：
 
@@ -269,6 +275,45 @@ src/data
 - UI 不直接修改棋盘数组
 - 所有落子都应先经过 `GameController`
 - 联机模式下，网络结果也应最终回到 `GameController` 统一落盘
+
+### 4.4 `GameStateSnapshot`
+
+文件：
+
+- `src/core/runtime/game_state.h`
+
+职责：
+
+- 提供局面快照，供 AI、回放或调试使用
+- 避免外部模块直接依赖 `GameController` 的可变内部状态
+
+当前字段：
+
+- `boardSize`
+- `mode`
+- `humanSide`
+- `currentPlayer`
+- `gameOver`
+- `revision`
+- `board`
+- `moveHistory`
+
+### 4.5 `ITurnActor` / `HumanTurnActor`
+
+文件：
+
+- `src/core/actor/turn_actor.h`
+- `src/core/actor/human_turn_actor.h`
+
+职责：
+
+- `ITurnActor`：统一定义回合执行入口
+- `HumanTurnActor`：人类回合的占位实现，实际点击由 UI 触发控制器落子
+
+约定：
+
+- 自动回合和手动回合都通过同一套接口挂到控制器上
+- 后续如果加入网络对手或回放对手，也可以复用这个接口
 
 ## 5. `src/ai`
 
@@ -351,6 +396,8 @@ src/data
 - `struct NetworkMessage`
 - `QString messageTypeToString(MessageType type)`
 - `MessageType messageTypeFromString(const QString &type)`
+- `QJsonObject networkMessageToJson(const NetworkMessage &message)`
+- `NetworkMessage networkMessageFromJson(const QJsonObject &object)`
 
 约定：
 
@@ -363,7 +410,7 @@ src/data
 职责：
 
 - 作为客户端通信入口
-- 负责连接服务器、断开连接、收发消息
+- 负责 UDP 房间发现、连接服务器、断开连接、收发消息
 - 向 UI 或控制层发出网络事件
 
 当前接口：
@@ -372,9 +419,15 @@ src/data
 - `void setPlayerName(const QString &name)`
 - `QString playerName() const`
 - `bool connectToHost(const QString &host, quint16 port)`
+- `bool connectToRoom(const GameRoom &room)`
 - `void disconnectFromHost()`
 - `bool isConnected() const`
 - `void sendMessage(const NetworkMessage &message)`
+- `bool startDiscovery(quint16 port = gomoku_config::kDefaultDiscoveryPort)`
+- `void stopDiscovery()`
+- `bool isDiscovering() const`
+- `QVector<GameRoom> discoveredRooms() const`
+- `void clearDiscoveredRooms()`
 
 信号：
 
@@ -382,6 +435,10 @@ src/data
 - `disconnectedFromServer()`
 - `messageReceived(const NetworkMessage &message)`
 - `connectionError(const QString &errorText)`
+- `discoveryStarted(quint16 port)`
+- `discoveryStopped()`
+- `roomDiscovered(const GameRoom &room)`
+- `roomsChanged()`
 
 私有槽：
 
@@ -389,10 +446,11 @@ src/data
 - `handleDisconnected()`
 - `handleReadyRead()`
 - `handleSocketError()`
+- `handleDiscoveryReadyRead()`
 
 约定：
 
-- 只负责连接和消息，不负责对局规则
+- 只负责连接、发现和消息，不负责对局规则
 - 网络解析失败时应向上层发错误，不直接崩溃
 
 ### 6.3 `GameRoom`
@@ -400,7 +458,7 @@ src/data
 职责：
 
 - 表示一个联机房间的状态
-- 保存房间号、房主、客人、棋盘大小和模式
+- 保存房间号、房主、主机地址、端口、客人、棋盘大小和模式
 
 当前接口：
 
@@ -409,6 +467,10 @@ src/data
 - `QString roomId() const`
 - `void setHostName(const QString &name)`
 - `QString hostName() const`
+- `void setHostAddress(const QString &address)`
+- `QString hostAddress() const`
+- `void setHostPort(quint16 port)`
+- `quint16 hostPort() const`
 - `void setGuestName(const QString &name)`
 - `QString guestName() const`
 - `void setBoardSize(int size)`
@@ -417,13 +479,15 @@ src/data
 - `GameMode currentMode() const`
 - `void setCreatedAt(const QDateTime &time)`
 - `QDateTime createdAt() const`
+- `void setLastSeenAt(const QDateTime &time)`
+- `QDateTime lastSeenAt() const`
 - `bool isReady() const`
 - `void reset()`
 
 约定：
 
 - 房间只是状态容器，不承担网络收发
-- 房间状态应由服务器和控制层共同维护
+- 房间状态应由服务器广播和控制层共同维护
 
 ### 6.4 `GameServer`
 
@@ -432,6 +496,7 @@ src/data
 - 在本地启动监听
 - 接收客户端连接
 - 维护服务端侧的连接集合
+- 通过 UDP 广播房间信息，供局域网客户端发现
 
 当前接口：
 
@@ -442,6 +507,15 @@ src/data
 - `quint16 listeningPort() const`
 - `QString roomCode() const`
 - `int connectedClientCount() const`
+- `void setHostName(const QString &name)`
+- `QString hostName() const`
+- `void setBoardSize(int size)`
+- `int boardSize() const`
+- `void setCurrentMode(GameMode mode)`
+- `GameMode currentMode() const`
+- `void setDiscoveryPort(quint16 port)`
+- `quint16 discoveryPort() const`
+- `GameRoom room() const`
 
 信号：
 
@@ -450,16 +524,20 @@ src/data
 - `clientConnected(const QString &playerName)`
 - `clientDisconnected(const QString &playerName)`
 - `serverError(const QString &errorText)`
+- `roomBroadcasted(const GameRoom &room)`
 
 私有槽：
 
 - `handleNewConnection()`
+- `handleClientReadyRead()`
 - `handleClientDisconnected()`
+- `broadcastRoomInfo()`
 
 约定：
 
 - 服务器侧只负责对局同步和连接管理
 - 具体消息语义仍由 `protocol.h` 约束
+- 房间广播用 UDP，真正连接和消息交换走 TCP
 
 ## 7. `src/record`
 
