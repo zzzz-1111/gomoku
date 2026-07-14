@@ -980,7 +980,7 @@ void MainWindow::setupHomePage()
     ui->historyRecordButton->setText(QStringLiteral("历史记录"));
     ui->networkButton->setText(QStringLiteral("联机对战"));
     ui->settingsButton->setText(QStringLiteral("设置"));
-    ui->exitButton->setText(QStringLiteral("退出系统"));
+    ui->exitButton->setText(QStringLiteral("退出游戏"));
 
     connect(ui->startGameButton, &QPushButton::clicked, this, [this]() {
         startGame(GameMode::LocalTwoPlayer, PlayerSide::Black);
