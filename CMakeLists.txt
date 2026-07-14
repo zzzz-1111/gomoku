@@ -25,6 +25,9 @@ set(PROJECT_SOURCES
         src/core/turn_context.h
         src/core/turn_actor.h
         src/core/human_turn_actor.h
+        src/data/database_manager.cpp
+        src/data/database_manager.h
+        src/data/models.h
         src/network/protocol.cpp
         src/network/game_room.cpp
         src/network/game_server.cpp
@@ -33,6 +36,10 @@ set(PROJECT_SOURCES
         src/network/game_room.h
         src/network/game_server.h
         src/network/network_manager.h
+        src/record/record_manager.cpp
+        src/record/record_manager.h
+        src/ui/history_dialog.cpp
+        src/ui/history_dialog.h
         src/ui/chessboard_widget.cpp
         src/ui/chessboard_widget.h
         src/ui/match_intro_overlay.cpp

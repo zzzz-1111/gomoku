@@ -8,6 +8,7 @@
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QDateTime>
 #include <QFormLayout>
 #include <QIcon>
 #include <QFile>
@@ -38,7 +39,9 @@
 #include "src/network/game_server.h"
 #include "src/network/network_manager.h"
 #include "src/network/protocol.h"
+#include "src/record/record_manager.h"
 #include "src/ui/chessboard_widget.h"
+#include "src/ui/history_dialog.h"
 #include "src/ui/match_intro_overlay.h"
 
 namespace {
@@ -473,6 +476,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , controller_(new GameController(this))
+    , recordManager_(new RecordManager(this))
     , networkManager_(new NetworkManager(this))
     , gameServer_(new GameServer(this))
 {
@@ -621,11 +625,13 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     connect(controller_, &GameController::gameFinished, this, [this](PieceColor winner) {
+        saveCurrentGameResult(winner);
         showGameOverPrompt(QStringLiteral("对局结束"),
                            QStringLiteral("%1获胜").arg(colorName(winner)));
     });
 
     connect(controller_, &GameController::drawDetected, this, [this]() {
+        saveCurrentGameResult(PieceColor::Empty);
         showGameOverPrompt(QStringLiteral("对局结束"), QStringLiteral("平局"));
     });
 
@@ -696,15 +702,16 @@ MainWindow::MainWindow(QWidget *parent)
             const bool accepted = message.payload.value(QStringLiteral("accepted")).toBool(false);
             if (accepted) {
                 setOnlineGameActive(true);
+                beginActiveMatchRecord();
                 controller_->resetGame();
                 ui->stackedWidget->setCurrentWidget(ui->gamePage);
                 syncBoardFromController();
                 refreshGameInfo();
-                statusBar()->showMessage(QStringLiteral("Rematch started"), 2000);
+                statusBar()->showMessage(QStringLiteral("已开始下一局"), 2000);
             } else {
                 setOnlineGameActive(false);
                 ui->stackedWidget->setCurrentWidget(ui->networkPage);
-                statusBar()->showMessage(QStringLiteral("Host ended the match"), 2500);
+                statusBar()->showMessage(QStringLiteral("主机已结束本局"), 2500);
             }
             return;
         }
@@ -895,10 +902,13 @@ void MainWindow::startGame(GameMode mode, PlayerSide humanSide, AIDifficulty aiD
     controller_->setGameMode(mode);
     controller_->setHumanSide(humanSide);
     configureTurnActors(mode, humanSide, aiDifficulty);
+    const bool onlineMode = mode == GameMode::OnlineHost || mode == GameMode::OnlineClient;
+    const bool waitingForClient = mode == GameMode::OnlineHost && !onlineGameStarted_;
+    if (!waitingForClient) {
+        beginActiveMatchRecord();
+    }
     controller_->resetGame();
     ui->stackedWidget->setCurrentWidget(ui->gamePage);
-
-    const bool onlineMode = mode == GameMode::OnlineHost || mode == GameMode::OnlineClient;
     if (!onlineMode) {
         onlineGameStarted_ = false;
         hostPlayerJoined_ = false;
@@ -957,10 +967,17 @@ void MainWindow::updateBoardMoveInput()
     boardWidget_->setMoveInputEnabled(allowInput);
 }
 
+void MainWindow::beginActiveMatchRecord()
+{
+    currentGameStartTime_ = QDateTime::currentDateTime();
+    currentGameResultRecorded_ = false;
+}
+
 void MainWindow::setupHomePage()
 {
     ui->startGameButton->setText(QStringLiteral("本地对战"));
     ui->historyButton->setText(QStringLiteral("人机对战"));
+    ui->historyRecordButton->setText(QStringLiteral("历史记录"));
     ui->networkButton->setText(QStringLiteral("联机对战"));
     ui->settingsButton->setText(QStringLiteral("设置"));
     ui->exitButton->setText(QStringLiteral("退出系统"));
@@ -977,6 +994,10 @@ void MainWindow::setupHomePage()
         }
         startGame(GameMode::HumanVsAI, humanSide, aiDifficulty);
         playAiMatchIntro();
+    });
+
+    connect(ui->historyRecordButton, &QPushButton::clicked, this, [this]() {
+        showHistoryDialog();
     });
 
     connect(ui->networkButton, &QPushButton::clicked, this, [this]() {
@@ -1104,7 +1125,7 @@ void MainWindow::setupNetworkPage()
                 updateBoardMoveInput();
                 syncBoardFromController();
                 refreshGameInfo();
-                statusBar()->showMessage(QStringLiteral("Returned to host game"), 2000);
+                statusBar()->showMessage(QStringLiteral("已返回主机对局"), 2000);
                 return;
             }
 
@@ -1250,6 +1271,78 @@ void MainWindow::refreshOnlineIdentityLabels()
     } else {
         ui->hostInfoLabel->setText(QStringLiteral("账号：%1").arg(localAccountName_));
     }
+}
+
+QString MainWindow::displayNameForSide(PlayerSide side) const
+{
+    switch (currentMode_) {
+    case GameMode::HumanVsAI:
+        if (side == humanSide_) {
+            return localAccountName_.isEmpty() ? QStringLiteral("玩家") : localAccountName_;
+        }
+        return QStringLiteral("AI玩家");
+    case GameMode::OnlineHost:
+        if (side == humanSide_) {
+            return localAccountName_.isEmpty() ? QStringLiteral("主机") : localAccountName_;
+        }
+        return remoteAccountName_.isEmpty() ? QStringLiteral("对方玩家") : remoteAccountName_;
+    case GameMode::OnlineClient:
+        if (side == humanSide_) {
+            return localAccountName_.isEmpty() ? QStringLiteral("玩家") : localAccountName_;
+        }
+        return remoteAccountName_.isEmpty() ? QStringLiteral("主机") : remoteAccountName_;
+    case GameMode::LocalTwoPlayer:
+    case GameMode::Replay:
+    default:
+        return side == PlayerSide::Black ? QStringLiteral("黑方玩家") : QStringLiteral("白方玩家");
+    }
+}
+
+void MainWindow::saveCurrentGameResult(PieceColor winner)
+{
+    if (currentGameResultRecorded_ || recordManager_ == nullptr || controller_ == nullptr) {
+        return;
+    }
+
+    GameRecord game;
+    game.mode = modeText(currentMode_);
+    game.blackPlayer = displayNameForSide(PlayerSide::Black);
+    game.whitePlayer = displayNameForSide(PlayerSide::White);
+    if (winner == PieceColor::Black) {
+        game.winner = game.blackPlayer;
+    } else if (winner == PieceColor::White) {
+        game.winner = game.whitePlayer;
+    } else {
+        game.winner = QStringLiteral("平局");
+    }
+    game.totalMoves = controller_->moveHistory().size();
+    game.startTime = currentGameStartTime_.isValid() ? currentGameStartTime_ : QDateTime::currentDateTime();
+    game.endTime = QDateTime::currentDateTime();
+
+    QVector<MoveRecord> moves;
+    moves.reserve(controller_->moveHistory().size());
+    for (const MoveInfo &move : controller_->moveHistory()) {
+        MoveRecord record;
+        record.gameId = -1;
+        record.stepNumber = move.stepNumber;
+        record.playerColor = static_cast<int>(move.color);
+        record.x = move.position.x;
+        record.y = move.position.y;
+        record.score = move.score;
+        moves.push_back(record);
+    }
+
+    if (recordManager_->saveGame(game, moves)) {
+        currentGameResultRecorded_ = true;
+    } else if (statusBar() != nullptr) {
+        statusBar()->showMessage(QStringLiteral("历史记录保存失败"), 3000);
+    }
+}
+
+void MainWindow::showHistoryDialog()
+{
+    HistoryDialog dialog(recordManager_, this);
+    dialog.exec();
 }
 
 void MainWindow::playMatchIntro(const IntroPlayerInfo &leftPlayer,
@@ -1422,9 +1515,9 @@ void MainWindow::showPendingOnlineHostGameOverPrompt()
     box.setIcon(QMessageBox::Question);
     box.setWindowTitle(pendingGameOverTitle_);
     box.setText(pendingGameOverMessage_);
-    box.setInformativeText(QStringLiteral("Start another round?"));
-    QPushButton *yesButton = box.addButton(QStringLiteral("Yes"), QMessageBox::AcceptRole);
-    box.addButton(QStringLiteral("No"), QMessageBox::RejectRole);
+    box.setInformativeText(QStringLiteral("是否再来一局？"));
+    QPushButton *yesButton = box.addButton(QStringLiteral("是"), QMessageBox::AcceptRole);
+    box.addButton(QStringLiteral("否"), QMessageBox::RejectRole);
     box.exec();
 
     const bool restart = box.clickedButton() == yesButton;
@@ -1436,18 +1529,19 @@ void MainWindow::showPendingOnlineHostGameOverPrompt()
 
     if (restart) {
         setOnlineGameActive(true);
+        beginActiveMatchRecord();
         controller_->resetGame();
         ui->stackedWidget->setCurrentWidget(ui->gamePage);
         syncBoardFromController();
         refreshGameInfo();
-        statusBar()->showMessage(QStringLiteral("Rematch started"), 2000);
+        statusBar()->showMessage(QStringLiteral("已开始下一局"), 2000);
         return;
     }
 
     setOnlineGameActive(false);
     ui->stackedWidget->setCurrentWidget(ui->networkPage);
     refreshDiscoveredRooms();
-    statusBar()->showMessage(QStringLiteral("Returned to network page"), 2500);
+    statusBar()->showMessage(QStringLiteral("已返回联机页面"), 2500);
 }
 
 void MainWindow::showGameOverPrompt(const QString &title, const QString &message)
@@ -1484,6 +1578,7 @@ void MainWindow::showGameOverPrompt(const QString &title, const QString &message
     box.exec();
 
     if (box.clickedButton() == restartButton) {
+        beginActiveMatchRecord();
         controller_->resetGame();
         ui->stackedWidget->setCurrentWidget(ui->gamePage);
         syncBoardFromController();

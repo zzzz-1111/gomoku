@@ -162,6 +162,24 @@ font-weight: 400;</string>
          </widget>
         </item>
         <item>
+         <widget class="QPushButton" name="historyRecordButton">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>48</height>
+           </size>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">font-family: "华文行楷";
+font-size: 18px;
+font-weight: 400;</string>
+          </property>
+          <property name="text">
+           <string>历史记录</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QPushButton" name="settingsButton">
           <property name="minimumSize">
            <size>
@@ -193,7 +211,7 @@ font-size: 18px;
 font-weight: 400;</string>
           </property>
           <property name="text">
-           <string>退出系统</string>
+           <string>退出游戏</string>
           </property>
          </widget>
         </item>
@@ -734,7 +752,10 @@ border: none;</string>
              <item>
               <widget class="QLabel" name="modeLabel">
                <property name="styleSheet">
-                <string notr="true">font-size: 16px; font-weight: 600; color: #1f3a2b;</string>
+                <string notr="true">font-family: "华文行楷";
+font-size: 16px;
+font-weight: 600;
+color: #1f3a2b;</string>
                </property>
                <property name="text">
                 <string>当前模式：本地双人</string>
@@ -786,7 +807,10 @@ border: none;</string>
                <item>
                 <widget class="QLabel" name="playerLabel">
                  <property name="styleSheet">
-                  <string notr="true">font-size: 16px; font-weight: 600; color: #1f3a2b;</string>
+                  <string notr="true">font-family: "华文行楷";
+font-size: 16px;
+font-weight: 600;
+color: #1f3a2b;</string>
                  </property>
                  <property name="text">
                   <string>当前玩家：黑方</string>
@@ -795,15 +819,27 @@ border: none;</string>
                </item>
               </layout>
              </item>
-             <item>
+            <item>
               <widget class="QLabel" name="stepLabel">
+               <property name="styleSheet">
+                <string notr="true">font-family: "华文行楷";
+font-size: 16px;
+font-weight: 400;
+color: #1f3a2b;</string>
+               </property>
                <property name="text">
                 <string>当前步数：0</string>
                </property>
               </widget>
              </item>
-             <item>
+            <item>
               <widget class="QLabel" name="statusLabel">
+               <property name="styleSheet">
+                <string notr="true">font-family: "华文行楷";
+font-size: 16px;
+font-weight: 400;
+color: #1f3a2b;</string>
+               </property>
                <property name="text">
                 <string>状态：等待落子</string>
                </property>

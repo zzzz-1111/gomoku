@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QDateTime>
 #include <QByteArray>
 #include <QString>
 #include <functional>
@@ -18,6 +19,7 @@ class ChessBoardWidget;
 class GameController;
 class GameServer;
 class MatchIntroOverlay;
+class RecordManager;
 class NetworkManager;
 class QTcpSocket;
 struct IntroPlayerInfo;
@@ -45,6 +47,10 @@ private:
     void refreshDiscoveredRooms();
     void syncBoardFromController();
     void refreshOnlineIdentityLabels();
+    void beginActiveMatchRecord();
+    void saveCurrentGameResult(PieceColor winner);
+    QString displayNameForSide(PlayerSide side) const;
+    void showHistoryDialog();
     void playMatchIntro(const IntroPlayerInfo &leftPlayer,
                         const IntroPlayerInfo &rightPlayer,
                         std::function<void()> finished = {});
@@ -59,6 +65,7 @@ private:
     Ui::MainWindow *ui = nullptr;
     ChessBoardWidget *boardWidget_ = nullptr;
     GameController *controller_ = nullptr;
+    RecordManager *recordManager_ = nullptr;
     NetworkManager *networkManager_ = nullptr;
     GameServer *gameServer_ = nullptr;
     MatchIntroOverlay *matchIntroOverlay_ = nullptr;
@@ -68,6 +75,8 @@ private:
     QString localAvatarPath_;
     QString remoteAccountName_;
     QByteArray remoteAvatarBytes_;
+    QDateTime currentGameStartTime_;
+    bool currentGameResultRecorded_ = false;
     bool applyingNetworkMove_ = false;
     bool onlineGameStarted_ = false;
     bool hostPlayerJoined_ = false;
