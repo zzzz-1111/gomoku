@@ -6,15 +6,8 @@
 enum class MessageType
 {
     Login,
-    CreateRoom,
-    JoinRoom,
-    Ready,
     GameStart,
-    Move,
-    MoveResult,
-    RestartRequest,
-    GameOver,
-    Disconnect
+    Move
 };
 
 struct NetworkMessage

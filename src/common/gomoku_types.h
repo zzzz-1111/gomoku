@@ -11,7 +11,6 @@ enum class GameMode
 {
     LocalTwoPlayer,
     HumanVsAI,
-    OnlineHost,
     OnlineClient,
     Replay
 };

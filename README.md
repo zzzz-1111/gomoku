@@ -1,20 +1,27 @@
-# 墨弈 Gomoku
+# Gomoku
 
-一款基于 Qt 的五子棋桌面程序，支持本地对战、人机对战、局域网联机、历史记录、棋局回放、昵称与头像配置。
+一款基于 Qt 的五子棋桌面应用，当前版本重点放在对局体验、联机直连、历史记录、回放和本地账号信息管理。
 
-## 已实现功能
+## 功能
 
 - 本地双人对战
 - 人机对战
-- 局域网联机对战
-- 联机房间发现与加入
-- 主机等待客户端加入后再开始对局
-- 联机结束后的中文“再来一局”提示
-- 头像与昵称本地保存
-- 历史记录保存与展示
-- 历史对局最简回放
-- 棋盘高亮、悬停提示、最后一步标记
-- AI 对战入口与难度选择
+- 直连联机对战
+  - 点击联机后直接输入对方 `IP` 即可连接
+  - 不再保留房间创建、房间列表和局域网扫描页面
+- 开局对局入场动画
+- 对局结束后的结果提示与再来一局
+- 历史记录保存与查看
+- 最简回放功能
+  - 仅回放棋盘落子
+  - 默认每步间隔 `0.3s`
+- 本地账号信息
+  - 昵称
+  - 头像
+  - 联机时展示双方昵称与头像
+- 设置功能
+  - 修改昵称
+  - 上传头像
 
 ## 技术栈
 
@@ -30,11 +37,11 @@
 - MinGW 64-bit
 - Windows
 
-## 启动方式
+## 构建
 
-推荐使用 Qt Creator 打开项目根目录下的 `CMakeLists.txt`，然后直接构建运行。
+推荐使用 Qt Creator 直接打开项目根目录下的 `CMakeLists.txt` 构建运行。
 
-如果使用命令行构建：
+命令行构建示例：
 
 ```bash
 cmake -S . -B build
@@ -43,13 +50,23 @@ cmake --build build --config Release
 
 ## 默认配置
 
-配置集中在 [src/common/config.h](src/common/config.h)：
+主要配置集中在 `src/common/config.h`：
 
 - `kBoardSize = 15`
 - `kDefaultCellSize = 40`
 - `kDefaultPort = 5000`
 - `kDefaultDiscoveryPort = 45454`
+- `kRoomBroadcastIntervalMs = 1000`
 - `kDefaultReplayDelayMs = 300`
+
+## 资源目录
+
+主要资源位于 `res/assets`：
+
+- `icons/`：程序图标
+- `backgrounds/`：主界面和对局背景
+- `avatars/`：默认头像、AI 头像、黑白方头像
+- `board/`：棋盘与棋子贴图
 
 ## 目录结构
 
@@ -57,13 +74,8 @@ cmake --build build --config Release
 gomoku/
 ├── CMakeLists.txt
 ├── README.md
-├── doc/
 ├── res/
 │   └── assets/
-│       ├── avatars/
-│       ├── backgrounds/
-│       ├── board/
-│       └── icons/
 └── src/
     ├── ai/
     ├── app/
@@ -75,111 +87,41 @@ gomoku/
     └── ui/
 ```
 
-## 资源说明
+## 模块说明
 
-当前资源索引由 `res.qrc` 管理，主要路径如下：
+### `src/app`
 
-- `:/assets/icons/app_icon.png`
-- `:/assets/backgrounds/home_hero_bg.png`
-- `:/assets/backgrounds/game_background.png`
-- `:/assets/backgrounds/vs.png`
-- `:/assets/avatars/default_avatar.png`
-- `:/assets/avatars/ai_avatar.png`
-- `:/assets/avatars/black.png`
-- `:/assets/avatars/white.png`
-- `:/assets/board/board_texture.png`
-- `:/assets/board/stone_black.png`
-- `:/assets/board/stone_white.png`
+程序入口。
 
-## 功能说明
+### `src/core`
 
-### 1. 主界面
+对局核心规则、状态和回合控制。
 
-主界面提供入口：
+### `src/ai`
 
-- 本地对战
-- 人机对战
-- 联机对战
-- 历史记录
-- 设置
-- 退出游戏
+人机落子决策与局面评估。
 
-### 2. 对局界面
+### `src/network`
 
-对局页面会显示：
+联机通信。当前采用直连方式，不再包含房间管理和局域网广播发现。
 
-- 当前模式
-- 当前玩家
-- 当前步数
-- 状态提示
-- 黑方 / 白方昵称
-- 玩家头像
+### `src/data`
 
-### 3. 联机对战
+本地数据存储，包含账号信息和历史记录相关数据。
 
-联机模式采用主机 - 客户端结构：
+### `src/record`
 
-- 主机创建房间并等待客户端加入
-- 客户端扫描并加入房间
-- 主机在检测到客户端进入前不可开始落子
-- 联机结束后仅主机默认弹出“是否再来一局”
+对局记录管理与持久化。
 
-### 4. 历史记录与回放
+### `src/ui`
 
-每局对局都会记录：
-
-- 模式
-- 黑方昵称
-- 白方昵称
-- 胜者
-- 总步数
-- 起止时间
-- 每一步落子
-
-在历史窗口中可以：
-
-- 查看最近对局
-- 选择一局回放
-- 以 `0.3s` 的间隔自动播放棋盘
-
-### 5. 头像与昵称
-
-程序启动时会读取本地保存的用户信息：
-
-- 如果已有昵称和头像，直接使用
-- 如果没有，会提示输入昵称
-- 头像可在设置中上传
-
-## 数据存储
-
-历史记录优先写入 SQLite 数据库，数据库不可用时会自动回退到本地 JSON 备用存储，避免对局记录丢失。
-
-## 开发说明
-
-- 棋盘尺寸当前默认使用 `15` 路
-- 联机端口和回放间隔都已集中在 `src/common/config.h`
-- 新增资源时，记得同步更新 `res.qrc`
-- 新增 UI 入口时，优先在 `src/ui/mainwindow.ui` 里调整，而不是完全动态生成
-
-## 主要源码
-
-- [src/app/main.cpp](src/app/main.cpp)
-- [src/ui/mainwindow.cpp](src/ui/mainwindow.cpp)
-- [src/ui/mainwindow.ui](src/ui/mainwindow.ui)
-- [src/ui/history_dialog.cpp](src/ui/history_dialog.cpp)
-- [src/ui/replay_dialog.cpp](src/ui/replay_dialog.cpp)
-- [src/ui/chessboard_widget.cpp](src/ui/chessboard_widget.cpp)
-- [src/core/game_controller.cpp](src/core/game_controller.cpp)
-- [src/network/network_manager.cpp](src/network/network_manager.cpp)
-- [src/network/game_server.cpp](src/network/game_server.cpp)
-- [src/record/record_manager.cpp](src/record/record_manager.cpp)
+主窗口、棋盘组件、历史记录窗口、回放窗口、开局动画等界面实现。
 
 ## 说明
 
-这个项目当前是一个可运行的 Qt 五子棋应用，重点在于：
+- 棋盘默认是 `15` 路。
+- 联机模式下会显示双方昵称和头像。
+- 如果本地没有账号信息，程序会提示先完成登录/设置。
+- 历史记录同时覆盖人机对局和联机对局。
+- 回放功能目前是最简版，只回放棋盘落子过程。
 
-- 对局体验
-- 联机流程
-- 记录保存
-- 历史查看
-- 棋局回放

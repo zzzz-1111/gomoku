@@ -29,12 +29,8 @@ set(PROJECT_SOURCES
         src/data/database_manager.h
         src/data/models.h
         src/network/protocol.cpp
-        src/network/game_room.cpp
-        src/network/game_server.cpp
         src/network/network_manager.cpp
         src/network/protocol.h
-        src/network/game_room.h
-        src/network/game_server.h
         src/network/network_manager.h
         src/record/record_manager.cpp
         src/record/record_manager.h
