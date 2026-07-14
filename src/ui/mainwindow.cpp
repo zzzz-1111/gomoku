@@ -203,12 +203,12 @@ QString loadOrPromptLocalAccountName(QWidget *parent)
 
 QString defaultAvatarResourcePath()
 {
-    return QStringLiteral(":/assets/profile/default_avatar.png");
+    return QStringLiteral(":/assets/avatars/default_avatar.png");
 }
 
 QString aiAvatarResourcePath()
 {
-    return QStringLiteral(":/assets/profile/ai_avatar.png");
+    return QStringLiteral(":/assets/avatars/ai_avatar.png");
 }
 
 QString customAvatarStoragePath()
@@ -494,7 +494,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->homePage->setStyleSheet(
         "QWidget#homePage {"
-        "border-image: url(:/assets/home/home_hero_bg.png) 0 0 0 0 stretch stretch;"
+        "border-image: url(:/assets/backgrounds/home_hero_bg.png) 0 0 0 0 stretch stretch;"
         "}"
         "QLabel#titleLabel, QLabel#subtitleLabel {"
         "color: #f5f7ef;"
@@ -516,7 +516,7 @@ MainWindow::MainWindow(QWidget *parent)
     resize(gomoku_config::kMainWindowWidth, gomoku_config::kMainWindowHeight);
     setMinimumSize(gomoku_config::kMainWindowMinWidth, gomoku_config::kMainWindowMinHeight);
     setWindowTitle(QStringLiteral("墨弈"));
-    setWindowIcon(QIcon(":/assets/app/app_icon.png"));
+    setWindowIcon(QIcon(":/assets/icons/app_icon.png"));
 
     if (ui->boardPlaceholder->layout() == nullptr) {
         auto *boardLayout = new QVBoxLayout(ui->boardPlaceholder);
@@ -1435,8 +1435,8 @@ void MainWindow::playOnlineMatchIntroPreview()
     remotePlayer.name = QStringLiteral("预览对手");
     remotePlayer.sideText = sideName(humanSide_ == PlayerSide::Black ? PlayerSide::White : PlayerSide::Black);
     remotePlayer.avatar = loadAvatarPixmap(
-        humanSide_ == PlayerSide::Black ? QStringLiteral(":/assets/profile/white.png")
-                                        : QStringLiteral(":/assets/profile/black.png"),
+        humanSide_ == PlayerSide::Black ? QStringLiteral(":/assets/avatars/white.png")
+                                        : QStringLiteral(":/assets/avatars/black.png"),
         QSize(128, 128));
 
     const bool localIsBlack = humanSide_ == PlayerSide::Black;

@@ -144,11 +144,11 @@ res/
 
 | 文件名 | 建议路径 | 用途 | 格式 | 备注 |
 |---|---|---|---|---|
-| `app_icon.svg` | `res/assets/app/app_icon.svg` | 程序图标 | SVG | 同时可导出 `app_icon_256.png` |
-| `app_icon_256.png` | `res/assets/app/app_icon_256.png` | Windows / Qt 窗口图标 | PNG | 256x256 |
-| `app_icon_512.png` | `res/assets/app/app_icon_512.png` | 高分辨率图标 | PNG | 512x512 |
-| `home_hero_bg.png` | `res/assets/home/home_hero_bg.png` | 首页主背景 | PNG / JPG | 1920x1080 |
-| `home_hero_overlay.png` | `res/assets/home/home_hero_overlay.png` | 首页叠层氛围图 | PNG | 透明背景更好 |
+| `app_icon.svg` | `res/assets/icons/app_icon.svg` | 程序图标 | SVG | 同时可导出 `app_icon_256.png` |
+| `app_icon_256.png` | `res/assets/icons/app_icon_256.png` | Windows / Qt 窗口图标 | PNG | 256x256 |
+| `app_icon_512.png` | `res/assets/icons/app_icon_512.png` | 高分辨率图标 | PNG | 512x512 |
+| `home_hero_bg.png` | `res/assets/backgrounds/home_hero_bg.png` | 首页主背景 | PNG / JPG | 1920x1080 |
+| `home_hero_overlay.png` | `res/assets/backgrounds/home_hero_overlay.png` | 首页叠层氛围图 | PNG | 透明背景更好 |
 | `icon_local_two_player.svg` | `res/assets/icons/icon_local_two_player.svg` | 本地双人按钮 | SVG | 线性风格 |
 | `icon_ai_battle.svg` | `res/assets/icons/icon_ai_battle.svg` | 人机对战按钮 | SVG | 线性风格 |
 | `icon_network_battle.svg` | `res/assets/icons/icon_network_battle.svg` | 局域网对战按钮 | SVG | 线性风格 |
@@ -181,7 +181,7 @@ res/
 | `card_bg.png` | `res/assets/cards/card_bg.png` | 首页统计卡片背景 | PNG | 半透明纹理 |
 | `card_border.png` | `res/assets/cards/card_border.png` | 卡片边框装饰 | PNG / SVG | 也可代码画 |
 | `divider_line.svg` | `res/assets/cards/divider_line.svg` | 区域分割线 | SVG | 细线风格 |
-| `avatar_placeholder.png` | `res/assets/profile/avatar_placeholder.png` | 默认头像 | PNG | 圆形或方形均可 |
+| `avatar_placeholder.png` | `res/assets/avatars/avatar_placeholder.png` | 默认头像 | PNG | 圆形或方形均可 |
 | `empty_history.svg` | `res/assets/empty/empty_history.svg` | 无历史记录 | SVG | 空状态插图 |
 | `empty_network.svg` | `res/assets/empty/empty_network.svg` | 未连接 / 等待连接 | SVG | 空状态插图 |
 | `empty_records.svg` | `res/assets/empty/empty_records.svg` | 无战绩记录 | SVG | 空状态插图 |
@@ -211,9 +211,9 @@ res/
 
 如果你想先把首页做出来，只需要先找这 10 个文件：
 
-1. `res/assets/app/app_icon.svg`
-2. `res/assets/app/app_icon_256.png`
-3. `res/assets/home/home_hero_bg.png`
+1. `res/assets/icons/app_icon.svg`
+2. `res/assets/icons/app_icon_256.png`
+3. `res/assets/backgrounds/home_hero_bg.png`
 4. `res/assets/icons/icon_local_two_player.svg`
 5. `res/assets/icons/icon_ai_battle.svg`
 6. `res/assets/icons/icon_network_battle.svg`

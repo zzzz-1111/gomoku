@@ -13,6 +13,7 @@
 
 #include "src/data/models.h"
 #include "src/record/record_manager.h"
+#include "src/ui/replay_dialog.h"
 
 HistoryDialog::HistoryDialog(RecordManager *recordManager, QWidget *parent)
     : QDialog(parent)
@@ -88,9 +89,22 @@ HistoryDialog::HistoryDialog(RecordManager *recordManager, QWidget *parent)
     layout->addWidget(table_, 1);
 
     auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Close, this);
+    replayButton_ = buttonBox->addButton(QStringLiteral("回放"), QDialogButtonBox::ActionRole);
     auto *refreshButton = buttonBox->addButton(QStringLiteral("刷新"), QDialogButtonBox::ActionRole);
     buttonBox->button(QDialogButtonBox::Close)->setText(QStringLiteral("关闭"));
+    replayButton_->setEnabled(false);
     connect(refreshButton, &QAbstractButton::clicked, this, &HistoryDialog::reload);
+    connect(replayButton_, &QAbstractButton::clicked, this, [this]() {
+        openReplayForRow(table_->currentRow());
+    });
+    connect(table_, &QTableWidget::itemDoubleClicked, this, [this](QTableWidgetItem *item) {
+        if (item != nullptr) {
+            openReplayForRow(item->row());
+        }
+    });
+    connect(table_, &QTableWidget::itemSelectionChanged, this, [this]() {
+        replayButton_->setEnabled(table_->currentRow() >= 0 && table_->currentRow() < records_.size());
+    });
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttonBox);
 
@@ -112,13 +126,13 @@ void HistoryDialog::reload()
 
 void HistoryDialog::applyRecords()
 {
-    const QVector<GameRecord> records = recordManager_ != nullptr
+    records_ = recordManager_ != nullptr
         ? recordManager_->recentGames(100)
         : QVector<GameRecord>();
 
-    table_->setRowCount(records.size());
-    for (int row = 0; row < records.size(); ++row) {
-        const GameRecord &record = records.at(row);
+    table_->setRowCount(records_.size());
+    for (int row = 0; row < records_.size(); ++row) {
+        const GameRecord &record = records_.at(row);
 
         auto setItem = [this, row](int column, const QString &text) {
             auto *item = new QTableWidgetItem(text);
@@ -132,9 +146,28 @@ void HistoryDialog::applyRecords()
         setItem(3, record.whitePlayer);
         setItem(4, record.winner);
         setItem(5, QString::number(record.totalMoves));
+        if (auto *item = table_->item(row, 0); item != nullptr) {
+            item->setData(Qt::UserRole, record.id);
+        }
     }
 
-    const bool hasRecords = !records.isEmpty();
+    const bool hasRecords = !records_.isEmpty();
     table_->setVisible(hasRecords);
     emptyLabel_->setVisible(!hasRecords);
+    replayButton_->setEnabled(hasRecords);
+    if (hasRecords) {
+        table_->selectRow(0);
+    }
+}
+
+void HistoryDialog::openReplayForRow(int row)
+{
+    if (row < 0 || row >= records_.size() || recordManager_ == nullptr) {
+        return;
+    }
+
+    const GameRecord &record = records_.at(row);
+    const QVector<MoveRecord> moves = recordManager_->movesForGame(record.id);
+    ReplayDialog dialog(record, moves, this);
+    dialog.exec();
 }

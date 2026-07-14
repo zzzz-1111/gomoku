@@ -40,6 +40,8 @@ set(PROJECT_SOURCES
         src/record/record_manager.h
         src/ui/history_dialog.cpp
         src/ui/history_dialog.h
+        src/ui/replay_dialog.cpp
+        src/ui/replay_dialog.h
         src/ui/chessboard_widget.cpp
         src/ui/chessboard_widget.h
         src/ui/match_intro_overlay.cpp

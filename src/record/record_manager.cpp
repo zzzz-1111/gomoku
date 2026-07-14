@@ -449,7 +449,7 @@ QVector<GameRecord> RecordManager::recentGames(int limit) const
 QVector<MoveRecord> RecordManager::movesForGame(int gameId) const
 {
     QVector<MoveRecord> moves;
-    if (gameId <= 0) {
+    if (gameId == 0) {
         return moves;
     }
 
@@ -488,7 +488,7 @@ QVector<MoveRecord> RecordManager::movesForGame(int gameId) const
 
 bool RecordManager::loadGame(int gameId)
 {
-    if (gameId <= 0) {
+    if (gameId == 0) {
         return false;
     }
 

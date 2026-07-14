@@ -89,7 +89,7 @@ MatchIntroOverlay::MatchIntroOverlay(QWidget *parent)
 
     vsImageLabel_->setFixedSize(kVsImageSize, kVsImageSize);
     vsImageLabel_->setAlignment(Qt::AlignCenter);
-    const QPixmap vsPixmap(QStringLiteral(":/assets/game/vs.png"));
+    const QPixmap vsPixmap(QStringLiteral(":/assets/backgrounds/vs.png"));
     if (vsPixmap.isNull()) {
         vsImageLabel_->setText(QStringLiteral("VS"));
         vsImageLabel_->setStyleSheet(QStringLiteral("font-size: 40px; font-weight: 800; color: #fff1b8;"));

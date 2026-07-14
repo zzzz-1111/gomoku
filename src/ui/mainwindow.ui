@@ -233,7 +233,7 @@ font-weight: 400;</string>
       <widget class="QWidget" name="networkPage">
        <property name="styleSheet">
         <string notr="true">QWidget#networkPage {
-    border-image: url(:/assets/home/home_hero_bg.png) 0 0 0 0 stretch stretch;
+    border-image: url(:/assets/backgrounds/home_hero_bg.png) 0 0 0 0 stretch stretch;
 }
 QFrame#roomListFrame, QFrame#networkControlFrame {
     background: transparent;
@@ -558,7 +558,7 @@ color: #1f3a2b;</string>
       <widget class="QWidget" name="gamePage">
        <property name="styleSheet">
         <string notr="true">QWidget#gamePage {
-    border-image: url(:/assets/game/game_background.png) 0 0 0 0 stretch stretch;
+    border-image: url(:/assets/backgrounds/game_background.png) 0 0 0 0 stretch stretch;
 }
 QPushButton#backButton {
     background-color: rgba(255, 255, 255, 0.72);
