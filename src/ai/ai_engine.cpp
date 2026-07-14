@@ -8,7 +8,6 @@
 namespace {
 
 constexpr int kWinScore = 100000000;
-constexpr int kLossScore = -kWinScore;
 constexpr int kNegInf = std::numeric_limits<int>::min() / 4;
 constexpr int kPosInf = std::numeric_limits<int>::max() / 4;
 
@@ -43,6 +42,17 @@ int candidateLimitForDepth(int depth)
         return 10;
     }
     return 12;
+}
+
+BoardPosition boardCenter(const QVector<QVector<PieceColor>> &board)
+{
+    if (board.isEmpty()) {
+        return {0, 0};
+    }
+
+    const int centerY = board.size() / 2;
+    const int centerX = board[centerY].isEmpty() ? 0 : board[centerY].size() / 2;
+    return {centerX, centerY};
 }
 
 } // namespace
@@ -89,11 +99,14 @@ QVector<BoardPosition> AIEngine::generateCandidates(const QVector<QVector<PieceC
     }
 
     if (!boardHasStone(board)) {
-        candidates.push_back({board.size() / 2, board.size() / 2});
+        candidates.push_back(boardCenter(board));
         return candidates;
     }
 
-    QVector<QVector<bool>> marked(board.size(), QVector<bool>(board.size(), false));
+    QVector<QVector<bool>> marked(board.size());
+    for (int y = 0; y < board.size(); ++y) {
+        marked[y] = QVector<bool>(board[y].size(), false);
+    }
     auto mark = [&](int x, int y) {
         if (!inside(board, x, y) || board[y][x] != PieceColor::Empty || marked[y][x]) {
             return;
@@ -145,13 +158,19 @@ int AIEngine::negamax(QVector<QVector<PieceColor>> &board,
                       int beta,
                       int ply) const
 {
-    if (depth <= 0 || GameRule::isBoardFull(board)) {
-        return evaluateState(board, aiColor);
+    if (GameRule::isBoardFull(board)) {
+        return 0;
+    }
+
+    if (depth <= 0) {
+        const int staticScore = evaluateState(board, aiColor);
+        return (currentColor == aiColor) ? staticScore : -staticScore;
     }
 
     QVector<BoardPosition> candidates = generateCandidates(board);
     if (candidates.isEmpty()) {
-        return evaluateState(board, aiColor);
+        const int staticScore = evaluateState(board, aiColor);
+        return (currentColor == aiColor) ? staticScore : -staticScore;
     }
 
     struct RankedCandidate
@@ -194,7 +213,7 @@ int AIEngine::negamax(QVector<QVector<PieceColor>> &board,
 
         int score = 0;
         if (GameRule::hasFiveInRow(board, x, y)) {
-            score = (currentColor == aiColor) ? (kWinScore - ply) : (kLossScore + ply);
+            score = kWinScore - ply;
         } else if (GameRule::isBoardFull(board)) {
             score = 0;
         } else {
@@ -219,8 +238,7 @@ MoveInfo AIEngine::chooseMove(const QVector<QVector<PieceColor>> &board, PieceCo
 
     QVector<BoardPosition> candidates = generateCandidates(board);
     if (candidates.isEmpty()) {
-        const int center = board.isEmpty() ? 7 : board.size() / 2;
-        bestMove.position = {center, center};
+        bestMove.position = boardCenter(board);
         return bestMove;
     }
 
