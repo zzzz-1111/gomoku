@@ -11,5 +11,7 @@
         <file alias="assets/board/board_texture.png">res/assets/board/board_texture.png</file>
         <file alias="assets/board/stone_black.png">res/assets/board/stone_black.png</file>
         <file alias="assets/board/stone_white.png">res/assets/board/stone_white.png</file>
+        <file alias="assets/board/black_win.png">res/assets/board/black_win.png</file>
+        <file alias="assets/board/white_win.png">res/assets/board/white_win.png</file>
     </qresource>
 </RCC>

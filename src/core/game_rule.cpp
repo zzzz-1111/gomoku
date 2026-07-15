@@ -21,7 +21,7 @@ int countDirection(const QVector<QVector<PieceColor>> &board, int x, int y, int 
     return count;
 }
 
-} // namespace
+}
 
 bool GameRule::isInsideBoard(int x, int y, int boardSize)
 {

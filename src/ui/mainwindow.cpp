@@ -3,29 +3,25 @@
 #include "ui_mainwindow.h"
 
 #include <QAbstractItemView>
-#include <QBuffer>
-#include <QDir>
+#include <QAbstractAnimation>
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDateTime>
 #include <QFormLayout>
 #include <QIcon>
-#include <QFile>
-#include <QFileDialog>
 #include <QFileInfo>
 #include <QInputDialog>
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QMessageBox>
 #include <QLineEdit>
-#include <QImage>
-#include <QImageReader>
-#include <QSettings>
-#include <QStandardPaths>
 #include <QPixmap>
 #include <QPushButton>
-#include <QShortcut>
+#include <QGraphicsOpacityEffect>
+#include <QParallelAnimationGroup>
+#include <QPropertyAnimation>
+#include <QSequentialAnimationGroup>
 #include <QLabel>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -37,6 +33,7 @@
 #include "src/core/human_turn_actor.h"
 #include "src/network/network_manager.h"
 #include "src/network/protocol.h"
+#include "src/profile/user_profile.h"
 #include "src/record/record_manager.h"
 #include "src/ui/chessboard_widget.h"
 #include "src/ui/history_dialog.h"
@@ -102,7 +99,7 @@ bool parseHostJoinInput(const QString &text, QString *host, quint16 *port)
     const int colonIndex = trimmed.lastIndexOf(QLatin1Char(':'));
     if (colonIndex > 0 && colonIndex < trimmed.size() - 1) {
         bool ok = false;
-        const int parsedPort = trimmed.mid(colonIndex + 1).toInt(&ok);
+        const int parsedPort = trimmed.sliced(colonIndex + 1).toInt(&ok);
         if (!ok || parsedPort <= 0 || parsedPort > 65535) {
             return false;
         }
@@ -119,298 +116,7 @@ bool parseHostJoinInput(const QString &text, QString *host, quint16 *port)
     return true;
 }
 
-QString loadOrPromptLocalAccountName(QWidget *parent)
-{
-    QSettings settings;
-    const QString storedName = settings.value(QStringLiteral("user/accountName")).toString().trimmed();
-    if (!storedName.isEmpty()) {
-        return storedName;
-    }
-
-    bool accepted = false;
-    const QString input = QInputDialog::getText(parent,
-                                                QStringLiteral("登录"),
-                                                QStringLiteral("请输入账号名称"),
-                                                QLineEdit::Normal,
-                                                QString(),
-                                                &accepted);
-    const QString accountName = accepted && !input.trimmed().isEmpty()
-        ? input.trimmed()
-        : QStringLiteral("Player");
-    settings.setValue(QStringLiteral("user/accountName"), accountName);
-    return accountName;
 }
-
-QString defaultAvatarResourcePath()
-{
-    return QStringLiteral(":/assets/avatars/default_avatar.png");
-}
-
-QString aiAvatarResourcePath()
-{
-    return QStringLiteral(":/assets/avatars/ai_avatar.png");
-}
-
-QString customAvatarStoragePath()
-{
-    const QString baseDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    if (baseDir.isEmpty()) {
-        return {};
-    }
-
-    QDir dir(baseDir);
-    if (!dir.exists(QStringLiteral("avatar")) && !dir.mkpath(QStringLiteral("avatar"))) {
-        return {};
-    }
-
-    return dir.filePath(QStringLiteral("avatar/custom_avatar.png"));
-}
-
-QString resolveLocalAvatarPath()
-{
-    const QString customPath = customAvatarStoragePath();
-    if (!customPath.isEmpty() && QFileInfo::exists(customPath)) {
-        return customPath;
-    }
-    return defaultAvatarResourcePath();
-}
-
-QPixmap loadAvatarPixmap(const QString &path, const QSize &targetSize)
-{
-    QPixmap pixmap;
-    if (!path.isEmpty()) {
-        pixmap.load(path);
-    }
-    if (pixmap.isNull()) {
-        pixmap.load(defaultAvatarResourcePath());
-    }
-    if (targetSize.isValid() && !targetSize.isEmpty()) {
-        pixmap = pixmap.scaled(targetSize, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-    }
-    return pixmap;
-}
-
-QByteArray encodeAvatarForNetwork(const QString &path)
-{
-    QImage image(path);
-    if (image.isNull()) {
-        image.load(defaultAvatarResourcePath());
-    }
-    if (image.isNull()) {
-        return {};
-    }
-
-    const QImage scaled = image.scaled(QSize(128, 128),
-                                       Qt::KeepAspectRatioByExpanding,
-                                       Qt::SmoothTransformation);
-    QByteArray bytes;
-    QBuffer buffer(&bytes);
-    buffer.open(QIODevice::WriteOnly);
-    scaled.save(&buffer, "PNG");
-    return bytes;
-}
-
-QPixmap loadAvatarPixmapFromBytes(const QByteArray &bytes, const QSize &targetSize)
-{
-    QPixmap pixmap;
-    if (!bytes.isEmpty()) {
-        pixmap.loadFromData(bytes);
-    }
-    if (pixmap.isNull()) {
-        pixmap.load(defaultAvatarResourcePath());
-    }
-    if (targetSize.isValid() && !targetSize.isEmpty()) {
-        pixmap = pixmap.scaled(targetSize, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-    }
-    return pixmap;
-}
-
-bool saveAvatarCopy(const QString &sourcePath, QString *errorMessage)
-{
-    const QString targetPath = customAvatarStoragePath();
-    if (targetPath.isEmpty()) {
-        if (errorMessage != nullptr) {
-            *errorMessage = QStringLiteral("无法创建头像保存目录");
-        }
-        return false;
-    }
-
-    QImageReader reader(sourcePath);
-    reader.setAutoTransform(true);
-    const QImage image = reader.read();
-    if (image.isNull()) {
-        if (errorMessage != nullptr) {
-            *errorMessage = reader.errorString().isEmpty()
-                ? QStringLiteral("读取头像失败")
-                : reader.errorString();
-        }
-        return false;
-    }
-
-    if (!image.save(targetPath, "PNG")) {
-        if (errorMessage != nullptr) {
-            *errorMessage = QStringLiteral("保存头像失败");
-        }
-        return false;
-    }
-
-    return true;
-}
-
-bool clearSavedAvatar(QString *errorMessage)
-{
-    const QString targetPath = customAvatarStoragePath();
-    if (targetPath.isEmpty()) {
-        return true;
-    }
-
-    if (QFile::exists(targetPath) && !QFile::remove(targetPath)) {
-        if (errorMessage != nullptr) {
-            *errorMessage = QStringLiteral("删除自定义头像失败");
-        }
-        return false;
-    }
-    return true;
-}
-
-bool showProfileSettingsDialog(QWidget *parent, QString *accountName, QString *avatarPath)
-{
-    if (parent == nullptr || accountName == nullptr || avatarPath == nullptr) {
-        return false;
-    }
-
-    const QString originalAccountName = accountName->trimmed();
-    const QString originalAvatarPath = *avatarPath;
-    QString stagedAvatarSourcePath = QFileInfo::exists(originalAvatarPath) && originalAvatarPath != defaultAvatarResourcePath()
-        ? originalAvatarPath
-        : QString();
-    bool stagedUseDefaultAvatar = stagedAvatarSourcePath.isEmpty();
-
-    QDialog dialog(parent);
-    dialog.setWindowTitle(QStringLiteral("设置"));
-    dialog.setModal(true);
-    dialog.setMinimumWidth(420);
-
-    auto *layout = new QVBoxLayout(&dialog);
-    auto *titleLabel = new QLabel(QStringLiteral("账号设置"), &dialog);
-    titleLabel->setStyleSheet(QStringLiteral("font-size: 20px; font-weight: 600; color: #1f3a2b;"));
-    layout->addWidget(titleLabel);
-
-    auto *nameRow = new QHBoxLayout;
-    auto *nameLabel = new QLabel(QStringLiteral("昵称"), &dialog);
-    nameLabel->setMinimumWidth(64);
-    auto *nameEdit = new QLineEdit(&dialog);
-    nameEdit->setPlaceholderText(QStringLiteral("用于联机对战显示"));
-    nameEdit->setText(originalAccountName);
-    nameRow->addWidget(nameLabel);
-    nameRow->addWidget(nameEdit);
-    layout->addLayout(nameRow);
-
-    auto *previewLabel = new QLabel(&dialog);
-    previewLabel->setFixedSize(120, 120);
-    previewLabel->setAlignment(Qt::AlignCenter);
-    previewLabel->setStyleSheet(QStringLiteral(
-        "background: rgba(255,255,255,0.70);"
-        "border: 1px solid rgba(31,58,43,0.18);"
-        "border-radius: 16px;"));
-    layout->addWidget(previewLabel, 0, Qt::AlignHCenter);
-
-    auto *pathLabel = new QLabel(&dialog);
-    pathLabel->setWordWrap(true);
-    pathLabel->setStyleSheet(QStringLiteral("color: #4b5c52;"));
-    layout->addWidget(pathLabel);
-
-    auto refreshPreview = [&]() {
-        const QString previewPath = stagedUseDefaultAvatar
-            ? defaultAvatarResourcePath()
-            : stagedAvatarSourcePath;
-        previewLabel->setPixmap(loadAvatarPixmap(previewPath, previewLabel->size()));
-        if (stagedUseDefaultAvatar) {
-            pathLabel->setText(QStringLiteral("当前头像：默认头像"));
-        } else {
-            pathLabel->setText(QStringLiteral("当前头像：自定义头像"));
-        }
-    };
-
-    auto *buttonRow = new QHBoxLayout;
-    auto *uploadButton = new QPushButton(QStringLiteral("上传头像"), &dialog);
-    auto *resetButton = new QPushButton(QStringLiteral("恢复默认"), &dialog);
-    buttonRow->addWidget(uploadButton);
-    buttonRow->addWidget(resetButton);
-    layout->addLayout(buttonRow);
-
-    auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
-    buttonBox->button(QDialogButtonBox::Ok)->setText(QStringLiteral("保存"));
-    buttonBox->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("取消"));
-    layout->addWidget(buttonBox);
-
-    QObject::connect(uploadButton, &QPushButton::clicked, &dialog, [&]() {
-        const QString fileName = QFileDialog::getOpenFileName(&dialog,
-                                                              QStringLiteral("选择头像"),
-                                                              QString(),
-                                                              QStringLiteral("图片文件 (*.png *.jpg *.jpeg *.bmp *.webp)"));
-        if (fileName.isEmpty()) {
-            return;
-        }
-
-        stagedAvatarSourcePath = fileName;
-        stagedUseDefaultAvatar = false;
-        refreshPreview();
-    });
-
-    QObject::connect(resetButton, &QPushButton::clicked, &dialog, [&]() {
-        stagedAvatarSourcePath.clear();
-        stagedUseDefaultAvatar = true;
-        refreshPreview();
-    });
-
-    QObject::connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-    QObject::connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-
-    refreshPreview();
-    if (dialog.exec() != QDialog::Accepted) {
-        return false;
-    }
-
-    const QString enteredName = nameEdit->text().trimmed();
-    if (enteredName.isEmpty()) {
-        QMessageBox::warning(parent, QStringLiteral("保存失败"), QStringLiteral("昵称不能为空"));
-        return false;
-    }
-
-    const bool nameChanged = enteredName != originalAccountName;
-    bool avatarChanged = false;
-
-    if (stagedUseDefaultAvatar) {
-        if (originalAvatarPath != defaultAvatarResourcePath()) {
-            QString errorMessage;
-            if (!clearSavedAvatar(&errorMessage)) {
-                QMessageBox::warning(parent, QStringLiteral("保存失败"), errorMessage);
-                return false;
-            }
-            *avatarPath = defaultAvatarResourcePath();
-            avatarChanged = true;
-        }
-    } else if (stagedAvatarSourcePath != originalAvatarPath) {
-        QString errorMessage;
-        if (!saveAvatarCopy(stagedAvatarSourcePath, &errorMessage)) {
-            QMessageBox::warning(parent, QStringLiteral("保存失败"), errorMessage);
-            return false;
-        }
-        *avatarPath = customAvatarStoragePath();
-        avatarChanged = true;
-    }
-
-    if (nameChanged) {
-        *accountName = enteredName;
-        QSettings settings;
-        settings.setValue(QStringLiteral("user/accountName"), *accountName);
-    }
-
-    return nameChanged || avatarChanged;
-}
-
-} // namespace
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -420,15 +126,10 @@ MainWindow::MainWindow(QWidget *parent)
     , networkManager_(new NetworkManager(this))
 {
     ui->setupUi(this);
-    localAccountName_ = loadOrPromptLocalAccountName(this);
-    localAvatarPath_ = resolveLocalAvatarPath();
+    localAccountName_ = UserProfile::loadOrPromptAccountName(this);
+    localAvatarPath_ = UserProfile::resolveLocalAvatarPath();
     networkManager_->setPlayerName(localAccountName_);
-    networkManager_->setAvatarData(encodeAvatarForNetwork(localAvatarPath_));
-
-    auto *previewShortcut = new QShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+P")), this);
-    connect(previewShortcut, &QShortcut::activated, this, [this]() {
-        playOnlineMatchIntroPreview();
-    });
+    networkManager_->setAvatarData(UserProfile::encodeAvatarForNetwork(localAvatarPath_));
 
     ui->homePage->setStyleSheet(
         "QWidget#homePage {"
@@ -466,9 +167,13 @@ MainWindow::MainWindow(QWidget *parent)
     boardWidget_->setBoardSize(controller_->boardSize());
     ui->boardPlaceholder->layout()->addWidget(boardWidget_);
 
+    debugHostButton_ = ui->debugHostButton;
+    debugClientButton_ = ui->debugClientButton;
+
     connect(boardWidget_, &ChessBoardWidget::cellClicked, this, [this](int x, int y) {
         if (currentMode_ == GameMode::OnlineClient) {
-            if (!onlineGameStarted_ || !networkManager_->isConnected()) {
+            const bool connected = networkManager_ != nullptr && networkManager_->isConnected();
+            if (!onlineGameStarted_ || (!onlineDebugMode_ && !connected)) {
                 setOnlineGameActive(false);
                 statusBar()->showMessage(QStringLiteral("对局尚未开始或连接已断开"), 2200);
                 return;
@@ -489,7 +194,7 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     connect(boardWidget_, &ChessBoardWidget::moveInputRejected, this, [this]() {
-        if (currentMode_ == GameMode::OnlineClient && !onlineGameStarted_) {
+        if (currentMode_ == GameMode::OnlineClient && !onlineGameStarted_ && !onlineDebugMode_) {
             statusBar()->showMessage(QStringLiteral("等待主机开始对局"), 2200);
         }
     });
@@ -522,26 +227,36 @@ MainWindow::MainWindow(QWidget *parent)
         }
 
         if (currentMode_ == GameMode::OnlineClient
-            && (!onlineGameStarted_ || !networkManager_->isConnected())) {
+            && (!onlineGameStarted_
+                || (!onlineDebugMode_ && (networkManager_ == nullptr || !networkManager_->isConnected())))) {
             return;
         }
 
-        NetworkMessage message;
-        message.type = MessageType::Move;
-        message.payload.insert(QStringLiteral("x"), move.position.x);
-        message.payload.insert(QStringLiteral("y"), move.position.y);
-        message.payload.insert(QStringLiteral("color"), static_cast<int>(move.color));
-        message.payload.insert(QStringLiteral("stepNumber"), move.stepNumber);
-
-        if (networkManager_ != nullptr) {
+        if (!onlineDebugMode_ && networkManager_ != nullptr) {
+            NetworkMessage message;
+            message.type = MessageType::Move;
+            message.payload.insert(QStringLiteral("x"), move.position.x);
+            message.payload.insert(QStringLiteral("y"), move.position.y);
+            message.payload.insert(QStringLiteral("color"), static_cast<int>(move.color));
+            message.payload.insert(QStringLiteral("stepNumber"), move.stepNumber);
             networkManager_->sendMessage(message);
+        }
+
+        if (currentMode_ == GameMode::OnlineClient
+            && onlineDebugMode_
+            && move.color == pieceColorForSide(humanSide_)
+            && controller_ != nullptr
+            && !controller_->snapshot().gameOver) {
+            scheduleOnlineDebugRemoteMove();
         }
     });
 
     connect(controller_, &GameController::gameFinished, this, [this](PieceColor winner) {
         saveCurrentGameResult(winner);
-        showGameOverPrompt(QStringLiteral("对局结束"),
-                           QStringLiteral("%1获胜").arg(colorName(winner)));
+        const QString message = QStringLiteral("%1获胜").arg(colorName(winner));
+        playWinAnimation(winner, [this, message]() {
+            showGameOverPrompt(QStringLiteral("对局结束"), message);
+        });
     });
 
     connect(controller_, &GameController::drawDetected, this, [this]() {
@@ -549,15 +264,26 @@ MainWindow::MainWindow(QWidget *parent)
         showGameOverPrompt(QStringLiteral("对局结束"), QStringLiteral("平局"));
     });
 
+    if (debugHostButton_ != nullptr && debugClientButton_ != nullptr) {
+        connect(debugHostButton_, &QPushButton::clicked, this, [this]() {
+            switchOnlineDebugRole(true);
+        });
+        connect(debugClientButton_, &QPushButton::clicked, this, [this]() {
+            switchOnlineDebugRole(false);
+        });
+    }
+
     setupHomePage();
     setupGamePage();
     connect(networkManager_, &NetworkManager::connectedToServer, this, [this]() {
-        // 此时只是 TCP 建链成功，必须继续等待服务器的 GAME_START。
         setOnlineGameActive(false);
         statusBar()->showMessage(QStringLiteral("已连接到主机，正在等待开局"), 2000);
     });
     connect(networkManager_, &NetworkManager::disconnectedFromServer, this, [this]() {
         setOnlineGameActive(false);
+        onlineDebugMode_ = false;
+        onlineDebugIsHost_ = true;
+        onlineDebugWaiting_ = false;
         if (matchIntroOverlay_ != nullptr) {
             matchIntroOverlay_->close();
         }
@@ -568,6 +294,9 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(networkManager_, &NetworkManager::connectionError, this, [this](const QString &errorText) {
         setOnlineGameActive(false);
+        onlineDebugMode_ = false;
+        onlineDebugIsHost_ = true;
+        onlineDebugWaiting_ = false;
         statusBar()->showMessage(errorText, 4000);
         ui->stackedWidget->setCurrentWidget(ui->homePage);
     });
@@ -591,7 +320,6 @@ MainWindow::MainWindow(QWidget *parent)
                 boardWidget_->setBoardSize(boardSize);
             }
 
-            // 只有收到 GAME_START 才把客户端切换到可落子状态。
             setOnlineGameActive(true);
             startGame(GameMode::OnlineClient, localSide);
             controller_->setCurrentPlayer(firstPlayer);
@@ -646,6 +374,10 @@ QString MainWindow::modeText(GameMode mode) const
     case GameMode::HumanVsAI:
         return QStringLiteral("人机对战");
     case GameMode::OnlineClient:
+        if (onlineDebugMode_) {
+            return onlineDebugIsHost_ ? QStringLiteral("联机调试（模拟主机）")
+                                      : QStringLiteral("联机调试（模拟客户端）");
+        }
         return QStringLiteral("联机客户端");
     case GameMode::Replay:
         return QStringLiteral("复盘模式");
@@ -720,9 +452,15 @@ void MainWindow::updateBoardMoveInput()
 
     bool allowInput = true;
     if (currentMode_ == GameMode::OnlineClient) {
-        allowInput = onlineGameStarted_
-            && networkManager_ != nullptr
-            && networkManager_->isConnected();
+        allowInput = onlineGameStarted_ && !onlineDebugWaiting_;
+        if (!onlineDebugMode_) {
+            allowInput = allowInput
+                && networkManager_ != nullptr
+                && networkManager_->isConnected();
+        } else if (controller_ != nullptr) {
+            allowInput = allowInput
+                && controller_->currentPlayer() == pieceColorForSide(humanSide_);
+        }
     }
 
     boardWidget_->setMoveInputEnabled(allowInput);
@@ -740,6 +478,7 @@ void MainWindow::setupHomePage()
     ui->historyButton->setText(QStringLiteral("人机对战"));
     ui->historyRecordButton->setText(QStringLiteral("历史记录"));
     ui->networkButton->setText(QStringLiteral("联机对战"));
+    ui->onlineDebugButton->setText(QStringLiteral("联机调试"));
     ui->settingsButton->setText(QStringLiteral("设置"));
     ui->exitButton->setText(QStringLiteral("退出游戏"));
 
@@ -762,6 +501,9 @@ void MainWindow::setupHomePage()
     });
 
     connect(ui->networkButton, &QPushButton::clicked, this, [this]() {
+        onlineDebugMode_ = false;
+        onlineDebugIsHost_ = true;
+        onlineDebugWaiting_ = false;
         bool accepted = false;
         const QString input = QInputDialog::getText(this,
                                                     QStringLiteral("联机对战"),
@@ -788,11 +530,21 @@ void MainWindow::setupHomePage()
         }
     });
 
+    connect(ui->onlineDebugButton, &QPushButton::clicked, this, [this]() {
+        if (networkManager_ != nullptr && networkManager_->isConnected()) {
+            QMessageBox::warning(this,
+                                 QStringLiteral("无法调试"),
+                                 QStringLiteral("请先退出当前真实联机，再进入调试模式"));
+            return;
+        }
+        showOnlineDebugDialog();
+    });
+
     connect(ui->settingsButton, &QPushButton::clicked, this, [this]() {
-        const bool profileChanged = showProfileSettingsDialog(this, &localAccountName_, &localAvatarPath_);
+        const bool profileChanged = UserProfile::showProfileSettingsDialog(this, &localAccountName_, &localAvatarPath_);
         if (profileChanged) {
             networkManager_->setPlayerName(localAccountName_);
-            networkManager_->setAvatarData(encodeAvatarForNetwork(localAvatarPath_));
+            networkManager_->setAvatarData(UserProfile::encodeAvatarForNetwork(localAvatarPath_));
             refreshGameInfo();
         }
     });
@@ -808,6 +560,9 @@ void MainWindow::setupGamePage()
         if (matchIntroOverlay_ != nullptr) {
             matchIntroOverlay_->close();
         }
+        onlineDebugMode_ = false;
+        onlineDebugIsHost_ = true;
+        onlineDebugWaiting_ = false;
         ui->stackedWidget->setCurrentWidget(ui->homePage);
         statusBar()->showMessage(QStringLiteral("返回首页"), 2000);
     });
@@ -888,12 +643,28 @@ void MainWindow::refreshGameInfo()
     ui->statusLabel->setText(QStringLiteral("状态：等待落子"));
 
     if (currentIsRemote) {
-        ui->playerIconLabel->setPixmap(loadAvatarPixmapFromBytes(remoteAvatarBytes_, ui->playerIconLabel->size()));
+        ui->playerIconLabel->setPixmap(UserProfile::loadAvatarPixmapFromBytes(remoteAvatarBytes_, ui->playerIconLabel->size()));
     } else {
         const QString avatarPath = QFileInfo::exists(localAvatarPath_)
             ? localAvatarPath_
-            : defaultAvatarResourcePath();
-        ui->playerIconLabel->setPixmap(loadAvatarPixmap(avatarPath, ui->playerIconLabel->size()));
+            : UserProfile::defaultAvatarResourcePath();
+        ui->playerIconLabel->setPixmap(UserProfile::loadAvatarPixmap(avatarPath, ui->playerIconLabel->size()));
+    }
+
+    if (debugHostButton_ != nullptr && debugClientButton_ != nullptr) {
+        const bool showDebugControls = onlineDebugMode_ && controller_->gameMode() == GameMode::OnlineClient;
+        debugHostButton_->setVisible(showDebugControls);
+        debugClientButton_->setVisible(showDebugControls);
+        if (showDebugControls) {
+            debugHostButton_->setText(onlineDebugIsHost_ ? QStringLiteral("当前：主机") : QStringLiteral("切换主机"));
+            debugClientButton_->setText(onlineDebugIsHost_ ? QStringLiteral("切换客户端") : QStringLiteral("当前：客户端"));
+            const QString activeStyle = QStringLiteral(
+                "background: #1f3a2b; color: white; border-radius: 12px; padding: 8px 14px;");
+            const QString inactiveStyle = QStringLiteral(
+                "background: rgba(31,58,43,0.08); color: #1f3a2b; border-radius: 12px; padding: 8px 14px;");
+            debugHostButton_->setStyleSheet(onlineDebugIsHost_ ? activeStyle : inactiveStyle);
+            debugClientButton_->setStyleSheet(onlineDebugIsHost_ ? inactiveStyle : activeStyle);
+        }
     }
 }
 
@@ -947,7 +718,6 @@ void MainWindow::saveCurrentGameResult(PieceColor winner)
         record.playerColor = static_cast<int>(move.color);
         record.x = move.position.x;
         record.y = move.position.y;
-        record.score = move.score;
         moves.push_back(record);
     }
 
@@ -991,46 +761,46 @@ void MainWindow::playMatchIntro(const IntroPlayerInfo &leftPlayer,
     });
 }
 
-void MainWindow::playOnlineMatchIntro()
+void MainWindow::playOnlineMatchIntro(std::function<void()> finished)
 {
     const QString avatarPath = QFileInfo::exists(localAvatarPath_)
         ? localAvatarPath_
-        : defaultAvatarResourcePath();
+        : UserProfile::defaultAvatarResourcePath();
 
     IntroPlayerInfo localPlayer;
     localPlayer.name = localAccountName_.isEmpty() ? QStringLiteral("Player") : localAccountName_;
     localPlayer.sideText = sideName(humanSide_);
-    localPlayer.avatar = loadAvatarPixmap(avatarPath, QSize(128, 128));
+    localPlayer.avatar = UserProfile::loadAvatarPixmap(avatarPath, QSize(128, 128));
 
     const PlayerSide remoteSide = humanSide_ == PlayerSide::Black ? PlayerSide::White : PlayerSide::Black;
     IntroPlayerInfo remotePlayer;
     remotePlayer.name = remoteAccountName_.isEmpty() ? QStringLiteral("对方玩家") : remoteAccountName_;
     remotePlayer.sideText = sideName(remoteSide);
-    remotePlayer.avatar = loadAvatarPixmapFromBytes(remoteAvatarBytes_, QSize(128, 128));
+    remotePlayer.avatar = UserProfile::loadAvatarPixmapFromBytes(remoteAvatarBytes_, QSize(128, 128));
 
     const bool localIsBlack = humanSide_ == PlayerSide::Black;
     const IntroPlayerInfo &leftPlayer = localIsBlack ? localPlayer : remotePlayer;
     const IntroPlayerInfo &rightPlayer = localIsBlack ? remotePlayer : localPlayer;
 
-    playMatchIntro(leftPlayer, rightPlayer);
+    playMatchIntro(leftPlayer, rightPlayer, std::move(finished));
 }
 
 void MainWindow::playAiMatchIntro()
 {
     const QString avatarPath = QFileInfo::exists(localAvatarPath_)
         ? localAvatarPath_
-        : defaultAvatarResourcePath();
+        : UserProfile::defaultAvatarResourcePath();
 
     IntroPlayerInfo humanPlayer;
     humanPlayer.name = localAccountName_.isEmpty() ? QStringLiteral("玩家") : localAccountName_;
     humanPlayer.sideText = sideName(humanSide_);
-    humanPlayer.avatar = loadAvatarPixmap(avatarPath, QSize(128, 128));
+    humanPlayer.avatar = UserProfile::loadAvatarPixmap(avatarPath, QSize(128, 128));
 
     const PlayerSide aiSide = humanSide_ == PlayerSide::Black ? PlayerSide::White : PlayerSide::Black;
     IntroPlayerInfo aiPlayer;
     aiPlayer.name = QStringLiteral("AI");
     aiPlayer.sideText = sideName(aiSide);
-    aiPlayer.avatar = loadAvatarPixmap(aiAvatarResourcePath(), QSize(128, 128));
+    aiPlayer.avatar = UserProfile::loadAvatarPixmap(UserProfile::aiAvatarResourcePath(), QSize(128, 128));
 
     const bool humanIsBlack = humanSide_ == PlayerSide::Black;
     const IntroPlayerInfo &leftPlayer = humanIsBlack ? humanPlayer : aiPlayer;
@@ -1039,30 +809,101 @@ void MainWindow::playAiMatchIntro()
     playMatchIntro(leftPlayer, rightPlayer);
 }
 
-void MainWindow::playOnlineMatchIntroPreview()
+void MainWindow::playWinAnimation(PieceColor winner, std::function<void()> finished)
 {
-    const QString avatarPath = QFileInfo::exists(localAvatarPath_)
-        ? localAvatarPath_
-        : defaultAvatarResourcePath();
+    if (winner != PieceColor::Black && winner != PieceColor::White) {
+        if (finished) {
+            finished();
+        }
+        return;
+    }
 
-    IntroPlayerInfo localPlayer;
-    localPlayer.name = localAccountName_.isEmpty() ? QStringLiteral("预览玩家") : localAccountName_;
-    localPlayer.sideText = sideName(humanSide_);
-    localPlayer.avatar = loadAvatarPixmap(avatarPath, QSize(128, 128));
+    QWidget *parent = ui != nullptr ? ui->centralwidget : nullptr;
+    if (parent == nullptr) {
+        if (finished) {
+            finished();
+        }
+        return;
+    }
 
-    IntroPlayerInfo remotePlayer;
-    remotePlayer.name = QStringLiteral("预览对手");
-    remotePlayer.sideText = sideName(humanSide_ == PlayerSide::Black ? PlayerSide::White : PlayerSide::Black);
-    remotePlayer.avatar = loadAvatarPixmap(
-        humanSide_ == PlayerSide::Black ? QStringLiteral(":/assets/avatars/white.png")
-                                        : QStringLiteral(":/assets/avatars/black.png"),
-        QSize(128, 128));
+    const QString resourcePath = winner == PieceColor::Black
+        ? QStringLiteral(":/assets/board/black_win.png")
+        : QStringLiteral(":/assets/board/white_win.png");
+    QPixmap source(resourcePath);
+    if (source.isNull()) {
+        if (finished) {
+            finished();
+        }
+        return;
+    }
 
-    const bool localIsBlack = humanSide_ == PlayerSide::Black;
-    const IntroPlayerInfo &leftPlayer = localIsBlack ? localPlayer : remotePlayer;
-    const IntroPlayerInfo &rightPlayer = localIsBlack ? remotePlayer : localPlayer;
+    auto *overlay = new QWidget(parent);
+    overlay->setAttribute(Qt::WA_StyledBackground);
+    overlay->setStyleSheet(QStringLiteral("background: rgba(12, 22, 16, 150);"));
+    overlay->setGeometry(parent->rect());
+    overlay->raise();
+    overlay->show();
 
-    playMatchIntro(leftPlayer, rightPlayer);
+    auto *imageLabel = new QLabel(overlay);
+    imageLabel->setAlignment(Qt::AlignCenter);
+    imageLabel->setScaledContents(true);
+    imageLabel->setStyleSheet(QStringLiteral("background: transparent;"));
+
+    const int maxWidth = qMin(overlay->width() * 7 / 10, 600);
+    const int maxHeight = qMin(overlay->height() * 7 / 10, 560);
+    QSize targetSize = source.size();
+    targetSize.scale(QSize(maxWidth, maxHeight), Qt::KeepAspectRatio);
+    imageLabel->setPixmap(source.scaled(targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+
+    const QRect endRect(overlay->width() / 2 - targetSize.width() / 2,
+                        overlay->height() / 2 - targetSize.height() / 2,
+                        targetSize.width(),
+                        targetSize.height());
+    const int insetX = qMax(36, targetSize.width() / 8);
+    const int insetY = qMax(48, targetSize.height() / 8);
+    const QRect startRect = endRect.adjusted(insetX, insetY, -insetX, -insetY);
+    imageLabel->setGeometry(startRect);
+    imageLabel->raise();
+    imageLabel->show();
+
+    auto *opacityEffect = new QGraphicsOpacityEffect(overlay);
+    opacityEffect->setOpacity(0.0);
+    overlay->setGraphicsEffect(opacityEffect);
+
+    auto *fadeIn = new QPropertyAnimation(opacityEffect, "opacity", overlay);
+    fadeIn->setDuration(180);
+    fadeIn->setStartValue(0.0);
+    fadeIn->setEndValue(1.0);
+
+    auto *scaleIn = new QPropertyAnimation(imageLabel, "geometry", overlay);
+    scaleIn->setDuration(520);
+    scaleIn->setStartValue(startRect);
+    scaleIn->setEndValue(endRect);
+    scaleIn->setEasingCurve(QEasingCurve::OutBack);
+
+    auto *intro = new QParallelAnimationGroup(overlay);
+    intro->addAnimation(fadeIn);
+    intro->addAnimation(scaleIn);
+
+    auto *fadeOut = new QPropertyAnimation(opacityEffect, "opacity", overlay);
+    fadeOut->setDuration(260);
+    fadeOut->setStartValue(1.0);
+    fadeOut->setEndValue(0.0);
+
+    auto *sequence = new QSequentialAnimationGroup(overlay);
+    sequence->addAnimation(intro);
+    sequence->addPause(1200);
+    sequence->addAnimation(fadeOut);
+
+    connect(sequence, &QSequentialAnimationGroup::finished, overlay, [overlay, finished = std::move(finished)]() mutable {
+        overlay->hide();
+        overlay->deleteLater();
+        if (finished) {
+            finished();
+        }
+    });
+
+    sequence->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
 void MainWindow::syncBoardFromController()
@@ -1084,7 +925,9 @@ void MainWindow::showGameOverPrompt(const QString &title, const QString &message
         return;
     }
 
-    ui->statusLabel->setText(QStringLiteral("状态：%1").arg(message));
+    if (ui != nullptr && ui->statusLabel != nullptr) {
+        ui->statusLabel->setText(QStringLiteral("状态：%1").arg(message));
+    }
     statusBar()->showMessage(QStringLiteral("%1: %2").arg(title, message), 4000);
 
     if (currentMode_ == GameMode::OnlineClient) {
@@ -1102,11 +945,7 @@ void MainWindow::showGameOverPrompt(const QString &title, const QString &message
     box.exec();
 
     if (box.clickedButton() == restartButton) {
-        beginActiveMatchRecord();
-        controller_->resetGame();
-        ui->stackedWidget->setCurrentWidget(ui->gamePage);
-        syncBoardFromController();
-        refreshGameInfo();
+        startGame(currentMode_, humanSide_);
         statusBar()->showMessage(QStringLiteral("已重新开始"), 2000);
         return;
     }

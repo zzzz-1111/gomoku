@@ -38,7 +38,7 @@ bool extractFrame(QByteArray &buffer, QByteArray *payload)
     return true;
 }
 
-} // namespace
+}
 
 NetworkManager::NetworkManager(QObject *parent)
     : QObject(parent)

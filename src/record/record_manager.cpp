@@ -63,7 +63,6 @@ QJsonObject moveToJson(const MoveRecord &move)
     object.insert(QStringLiteral("playerColor"), move.playerColor);
     object.insert(QStringLiteral("x"), move.x);
     object.insert(QStringLiteral("y"), move.y);
-    object.insert(QStringLiteral("score"), move.score);
     return object;
 }
 
@@ -76,7 +75,6 @@ MoveRecord moveFromJson(const QJsonObject &object)
     move.playerColor = object.value(QStringLiteral("playerColor")).toInt();
     move.x = object.value(QStringLiteral("x")).toInt();
     move.y = object.value(QStringLiteral("y")).toInt();
-    move.score = object.value(QStringLiteral("score")).toInt();
     return move;
 }
 
@@ -301,8 +299,8 @@ bool storeMoves(QSqlDatabase database, qint64 gameId, const QVector<MoveRecord> 
 {
     QSqlQuery query(database);
     query.prepare(QStringLiteral(
-        "INSERT INTO moves (game_id, step_number, player_color, x, y, score) "
-        "VALUES (?, ?, ?, ?, ?, ?)"));
+        "INSERT INTO moves (game_id, step_number, player_color, x, y) "
+        "VALUES (?, ?, ?, ?, ?)"));
 
     for (const MoveRecord &move : moves) {
         query.bindValue(0, gameId);
@@ -310,7 +308,6 @@ bool storeMoves(QSqlDatabase database, qint64 gameId, const QVector<MoveRecord> 
         query.bindValue(2, move.playerColor);
         query.bindValue(3, move.x);
         query.bindValue(4, move.y);
-        query.bindValue(5, move.score);
         if (!query.exec()) {
             qWarning().noquote() << "Insert move failed:" << query.lastError().text();
             return false;
@@ -320,7 +317,7 @@ bool storeMoves(QSqlDatabase database, qint64 gameId, const QVector<MoveRecord> 
     return true;
 }
 
-} // namespace
+}
 
 RecordManager::RecordManager(QObject *parent)
     : QObject(parent)
@@ -458,7 +455,7 @@ QVector<MoveRecord> RecordManager::movesForGame(int gameId) const
         if (database.isOpen()) {
             QSqlQuery query(database);
             query.prepare(QStringLiteral(
-                "SELECT id, game_id, step_number, player_color, x, y, score "
+                "SELECT id, game_id, step_number, player_color, x, y "
                 "FROM moves WHERE game_id = ? ORDER BY step_number ASC, id ASC"));
             query.addBindValue(gameId);
             if (query.exec()) {
@@ -470,7 +467,6 @@ QVector<MoveRecord> RecordManager::movesForGame(int gameId) const
                     move.playerColor = query.value(3).toInt();
                     move.x = query.value(4).toInt();
                     move.y = query.value(5).toInt();
-                    move.score = query.value(6).toInt();
                     moves.push_back(move);
                 }
             } else {

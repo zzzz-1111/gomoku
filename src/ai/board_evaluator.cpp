@@ -70,7 +70,7 @@ int patternScore(int length, int openEnds)
     return length * 5 + openEnds * 2;
 }
 
-} // namespace
+}
 
 int BoardEvaluator::evaluateBoard(const QVector<QVector<PieceColor>> &board, PieceColor aiColor) const
 {

@@ -168,7 +168,6 @@ void GameController::appendMove(int x, int y, PieceColor color)
     move.position = {x, y};
     move.color = color;
     move.stepNumber = moveHistory_.size() + 1;
-    move.score = 0;
     moveHistory_.push_back(move);
 }
 

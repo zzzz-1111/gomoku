@@ -44,7 +44,6 @@ struct MoveInfo
     BoardPosition position;
     PieceColor color = PieceColor::Empty;
     int stepNumber = 0;
-    int score = 0;
 };
 
 struct GameSettings

@@ -31,7 +31,7 @@ QString winnerText(const QString &winner)
     return winner.isEmpty() ? QStringLiteral("未知") : winner;
 }
 
-} // namespace
+}
 
 ReplayDialog::ReplayDialog(const GameRecord &game, const QVector<MoveRecord> &moves, QWidget *parent)
     : QDialog(parent)

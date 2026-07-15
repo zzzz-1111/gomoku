@@ -28,7 +28,7 @@ QPixmap scaledAvatar(const QPixmap &source)
                          Qt::SmoothTransformation);
 }
 
-} // namespace
+}
 
 MatchIntroOverlay::MatchIntroOverlay(QWidget *parent)
     : QWidget(parent)

@@ -32,6 +32,8 @@ set(PROJECT_SOURCES
         src/network/network_manager.cpp
         src/network/protocol.h
         src/network/network_manager.h
+        src/profile/user_profile.cpp
+        src/profile/user_profile.h
         src/record/record_manager.cpp
         src/record/record_manager.h
         src/ui/history_dialog.cpp
@@ -42,6 +44,7 @@ set(PROJECT_SOURCES
         src/ui/chessboard_widget.h
         src/ui/match_intro_overlay.cpp
         src/ui/match_intro_overlay.h
+        src/ui/mainwindow_online_debug.cpp
         src/ui/mainwindow.cpp
         src/ui/mainwindow.h
         src/ui/mainwindow.ui

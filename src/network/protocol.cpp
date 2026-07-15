@@ -17,7 +17,7 @@ QString typeToString(MessageType type)
     return QStringLiteral("LOGIN");
 }
 
-} // namespace
+}
 
 QString messageTypeToString(MessageType type)
 {

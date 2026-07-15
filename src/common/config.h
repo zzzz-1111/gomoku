@@ -17,6 +17,6 @@ constexpr int kDefaultDiscoveryPort = 45454;
 constexpr int kRoomBroadcastIntervalMs = 1000;
 constexpr int kDefaultReplayDelayMs = 300;
 
-} // namespace gomoku_config
+}
 
-#endif // CONFIG_H
+#endif

@@ -33,7 +33,7 @@ void enableForeignKeys(QSqlDatabase &database)
     pragma.exec(QStringLiteral("PRAGMA foreign_keys = ON"));
 }
 
-} // namespace
+}
 
 DatabaseManager &DatabaseManager::instance()
 {
@@ -123,7 +123,6 @@ bool DatabaseManager::ensureSchema()
             "player_color INTEGER NOT NULL,"
             "x INTEGER NOT NULL,"
             "y INTEGER NOT NULL,"
-            "score INTEGER NOT NULL DEFAULT 0,"
             "FOREIGN KEY(game_id) REFERENCES games(id) ON DELETE CASCADE)"))) {
         qWarning().noquote() << "Create moves table failed:" << query.lastError().text();
         return false;

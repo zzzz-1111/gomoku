@@ -59,7 +59,7 @@ QPixmap fallbackStonePixmap(PieceColor color, int diameter)
     return pixmap;
 }
 
-} // namespace
+}
 
 ChessBoardWidget::ChessBoardWidget(QWidget *parent)
     : QWidget(parent)
@@ -171,7 +171,6 @@ void ChessBoardWidget::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::TextAntialiasing, true);
 
     const QRect board = boardRect();
-    // painter.fillRect(rect(), QColor(245, 240, 230));
 
     if (!boardTexture_.isNull()) {
         painter.drawPixmap(board, boardTexture_);
@@ -279,8 +278,6 @@ void ChessBoardWidget::mousePressEvent(QMouseEvent *event)
         return;
     }
 
-    // 联机等待阶段使用独立输入锁。即使棋盘页面已经显示，
-    // 也不会发出 cellClicked，更不会进入 GameController::placeStone。
     if (!moveInputEnabled_) {
         event->accept();
         emit moveInputRejected();

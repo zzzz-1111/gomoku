@@ -55,7 +55,7 @@ BoardPosition boardCenter(const QVector<QVector<PieceColor>> &board)
     return {centerX, centerY};
 }
 
-} // namespace
+}
 
 AIEngine::AIEngine() = default;
 
@@ -306,6 +306,5 @@ MoveInfo AIEngine::chooseMove(const QVector<QVector<PieceColor>> &board, PieceCo
     }
 
     bestMove.position = bestPosition;
-    bestMove.score = bestScore;
     return bestMove;
 }
