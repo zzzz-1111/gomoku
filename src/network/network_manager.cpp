@@ -3,8 +3,8 @@
 #include <QAbstractSocket>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QtEndian>
 #include <QTcpSocket>
+#include <QtEndian>
 
 namespace {
 
@@ -154,6 +154,5 @@ void NetworkManager::handleSocketError()
 
 void NetworkManager::writeFrame(const QByteArray &payload)
 {
-    const QByteArray frame = makeFrame(payload);
-    socket_->write(frame);
+    socket_->write(makeFrame(payload));
 }

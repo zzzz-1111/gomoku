@@ -13,6 +13,8 @@ QString typeToString(MessageType type)
         return QStringLiteral("GAME_START");
     case MessageType::Move:
         return QStringLiteral("MOVE");
+    case MessageType::RestartRequest:
+        return QStringLiteral("RESTART_REQUEST");
     }
     return QStringLiteral("LOGIN");
 }
@@ -31,6 +33,9 @@ MessageType messageTypeFromString(const QString &type)
     }
     if (type == QStringLiteral("MOVE")) {
         return MessageType::Move;
+    }
+    if (type == QStringLiteral("RESTART_REQUEST")) {
+        return MessageType::RestartRequest;
     }
     return MessageType::Login;
 }

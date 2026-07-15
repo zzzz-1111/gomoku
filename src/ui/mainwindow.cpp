@@ -31,6 +31,7 @@
 #include "src/common/config.h"
 #include "src/core/game_controller.h"
 #include "src/core/human_turn_actor.h"
+#include "src/network/game_server.h"
 #include "src/network/network_manager.h"
 #include "src/network/protocol.h"
 #include "src/profile/user_profile.h"
@@ -99,7 +100,7 @@ bool parseHostJoinInput(const QString &text, QString *host, quint16 *port)
     const int colonIndex = trimmed.lastIndexOf(QLatin1Char(':'));
     if (colonIndex > 0 && colonIndex < trimmed.size() - 1) {
         bool ok = false;
-        const int parsedPort = trimmed.sliced(colonIndex + 1).toInt(&ok);
+        const int parsedPort = trimmed.mid(colonIndex + 1).toInt(&ok);
         if (!ok || parsedPort <= 0 || parsedPort > 65535) {
             return false;
         }
@@ -116,6 +117,54 @@ bool parseHostJoinInput(const QString &text, QString *host, quint16 *port)
     return true;
 }
 
+bool showOnlineRoleDialog(QWidget *parent, bool *isHost, PlayerSide *hostSide)
+{
+    if (isHost == nullptr || hostSide == nullptr) {
+        return false;
+    }
+
+    QDialog dialog(parent);
+    dialog.setWindowTitle(QStringLiteral("联机对战"));
+    dialog.setModal(true);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *form = new QFormLayout;
+
+    auto *roleCombo = new QComboBox(&dialog);
+    roleCombo->addItem(QStringLiteral("作为主机"), true);
+    roleCombo->addItem(QStringLiteral("作为客户端"), false);
+
+    auto *sideCombo = new QComboBox(&dialog);
+    sideCombo->addItem(QStringLiteral("黑方"), static_cast<int>(PlayerSide::Black));
+    sideCombo->addItem(QStringLiteral("白方"), static_cast<int>(PlayerSide::White));
+
+    form->addRow(QStringLiteral("联机身份"), roleCombo);
+    form->addRow(QStringLiteral("主机执子"), sideCombo);
+    layout->addLayout(form);
+
+    auto syncSideEnabled = [roleCombo, sideCombo]() {
+        sideCombo->setEnabled(roleCombo->currentData().toBool());
+    };
+    QObject::connect(roleCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), &dialog, syncSideEnabled);
+    syncSideEnabled();
+
+    auto *buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    buttonBox->button(QDialogButtonBox::Ok)->setText(QStringLiteral("确定"));
+    buttonBox->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("取消"));
+    layout->addWidget(buttonBox);
+
+    QObject::connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() != QDialog::Accepted) {
+        return false;
+    }
+
+    *isHost = roleCombo->currentData().toBool();
+    *hostSide = static_cast<PlayerSide>(sideCombo->currentData().toInt());
+    return true;
+}
+
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -124,12 +173,15 @@ MainWindow::MainWindow(QWidget *parent)
     , controller_(new GameController(this))
     , recordManager_(new RecordManager(this))
     , networkManager_(new NetworkManager(this))
+    , gameServer_(new GameServer(this))
 {
     ui->setupUi(this);
     localAccountName_ = UserProfile::loadOrPromptAccountName(this);
     localAvatarPath_ = UserProfile::resolveLocalAvatarPath();
     networkManager_->setPlayerName(localAccountName_);
     networkManager_->setAvatarData(UserProfile::encodeAvatarForNetwork(localAvatarPath_));
+    gameServer_->setHostName(localAccountName_);
+    gameServer_->setHostAvatarData(UserProfile::encodeAvatarForNetwork(localAvatarPath_));
 
     ui->homePage->setStyleSheet(
         "QWidget#homePage {"
@@ -167,20 +219,23 @@ MainWindow::MainWindow(QWidget *parent)
     boardWidget_->setBoardSize(controller_->boardSize());
     ui->boardPlaceholder->layout()->addWidget(boardWidget_);
 
-    debugHostButton_ = ui->debugHostButton;
-    debugClientButton_ = ui->debugClientButton;
-
     connect(boardWidget_, &ChessBoardWidget::cellClicked, this, [this](int x, int y) {
-        if (currentMode_ == GameMode::OnlineClient) {
+        if (currentMode_ == GameMode::OnlineHost) {
+            if (!hostMayPlaceStone()) {
+                setOnlineGameActive(false);
+                statusBar()->showMessage(QStringLiteral("等待客户端加入，主机暂时不能落子"), 2200);
+                return;
+            }
+        } else if (currentMode_ == GameMode::OnlineClient) {
             const bool connected = networkManager_ != nullptr && networkManager_->isConnected();
-            if (!onlineGameStarted_ || (!onlineDebugMode_ && !connected)) {
+            if (!onlineGameStarted_ || !connected) {
                 setOnlineGameActive(false);
                 statusBar()->showMessage(QStringLiteral("对局尚未开始或连接已断开"), 2200);
                 return;
             }
         }
 
-        if (currentMode_ == GameMode::OnlineClient) {
+        if (currentMode_ == GameMode::OnlineHost || currentMode_ == GameMode::OnlineClient) {
             const PieceColor localColor = pieceColorForSide(humanSide_);
             if (controller_->currentPlayer() != localColor) {
                 statusBar()->showMessage(QStringLiteral("现在还不是你的回合"), 1500);
@@ -194,7 +249,9 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     connect(boardWidget_, &ChessBoardWidget::moveInputRejected, this, [this]() {
-        if (currentMode_ == GameMode::OnlineClient && !onlineGameStarted_ && !onlineDebugMode_) {
+        if (currentMode_ == GameMode::OnlineHost && !hostMayPlaceStone()) {
+            statusBar()->showMessage(QStringLiteral("等待客户端加入"), 2200);
+        } else if (currentMode_ == GameMode::OnlineClient && !onlineGameStarted_) {
             statusBar()->showMessage(QStringLiteral("等待主机开始对局"), 2200);
         }
     });
@@ -212,11 +269,13 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     connect(controller_, &GameController::currentPlayerChanged, this, [this](PieceColor) {
+        updateBoardMoveInput();
         refreshGameInfo();
     });
 
     connect(controller_, &GameController::moveApplied, this, [this](const MoveInfo &move) {
         boardWidget_->setLastMove(move.position);
+        updateBoardMoveInput();
         refreshGameInfo();
         statusBar()->showMessage(QStringLiteral("%1已落子").arg(colorName(move.color)), 2000);
     });
@@ -226,13 +285,23 @@ MainWindow::MainWindow(QWidget *parent)
             return;
         }
 
-        if (currentMode_ == GameMode::OnlineClient
+        if ((currentMode_ == GameMode::OnlineHost || currentMode_ == GameMode::OnlineClient)
             && (!onlineGameStarted_
-                || (!onlineDebugMode_ && (networkManager_ == nullptr || !networkManager_->isConnected())))) {
+                || (currentMode_ == GameMode::OnlineHost && !hostMayPlaceStone())
+                || (currentMode_ == GameMode::OnlineClient
+                    && (networkManager_ == nullptr || !networkManager_->isConnected())))) {
             return;
         }
 
-        if (!onlineDebugMode_ && networkManager_ != nullptr) {
+        if (currentMode_ == GameMode::OnlineHost && gameServer_ != nullptr) {
+            NetworkMessage message;
+            message.type = MessageType::Move;
+            message.payload.insert(QStringLiteral("x"), move.position.x);
+            message.payload.insert(QStringLiteral("y"), move.position.y);
+            message.payload.insert(QStringLiteral("color"), static_cast<int>(move.color));
+            message.payload.insert(QStringLiteral("stepNumber"), move.stepNumber);
+            gameServer_->broadcastMessage(message);
+        } else if (currentMode_ == GameMode::OnlineClient && networkManager_ != nullptr) {
             NetworkMessage message;
             message.type = MessageType::Move;
             message.payload.insert(QStringLiteral("x"), move.position.x);
@@ -242,13 +311,6 @@ MainWindow::MainWindow(QWidget *parent)
             networkManager_->sendMessage(message);
         }
 
-        if (currentMode_ == GameMode::OnlineClient
-            && onlineDebugMode_
-            && move.color == pieceColorForSide(humanSide_)
-            && controller_ != nullptr
-            && !controller_->snapshot().gameOver) {
-            scheduleOnlineDebugRemoteMove();
-        }
     });
 
     connect(controller_, &GameController::gameFinished, this, [this](PieceColor winner) {
@@ -264,15 +326,6 @@ MainWindow::MainWindow(QWidget *parent)
         showGameOverPrompt(QStringLiteral("对局结束"), QStringLiteral("平局"));
     });
 
-    if (debugHostButton_ != nullptr && debugClientButton_ != nullptr) {
-        connect(debugHostButton_, &QPushButton::clicked, this, [this]() {
-            switchOnlineDebugRole(true);
-        });
-        connect(debugClientButton_, &QPushButton::clicked, this, [this]() {
-            switchOnlineDebugRole(false);
-        });
-    }
-
     setupHomePage();
     setupGamePage();
     connect(networkManager_, &NetworkManager::connectedToServer, this, [this]() {
@@ -281,9 +334,6 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(networkManager_, &NetworkManager::disconnectedFromServer, this, [this]() {
         setOnlineGameActive(false);
-        onlineDebugMode_ = false;
-        onlineDebugIsHost_ = true;
-        onlineDebugWaiting_ = false;
         if (matchIntroOverlay_ != nullptr) {
             matchIntroOverlay_->close();
         }
@@ -294,9 +344,6 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(networkManager_, &NetworkManager::connectionError, this, [this](const QString &errorText) {
         setOnlineGameActive(false);
-        onlineDebugMode_ = false;
-        onlineDebugIsHost_ = true;
-        onlineDebugWaiting_ = false;
         statusBar()->showMessage(errorText, 4000);
         ui->stackedWidget->setCurrentWidget(ui->homePage);
     });
@@ -328,6 +375,19 @@ MainWindow::MainWindow(QWidget *parent)
             return;
         }
 
+        if (message.type == MessageType::RestartRequest) {
+            const bool accepted = message.payload.value(QStringLiteral("accepted")).toBool(false);
+            if (accepted) {
+                restartOnlineGame();
+                statusBar()->showMessage(QStringLiteral("主机已开始下一局"), 2500);
+            } else {
+                setOnlineGameActive(false);
+                ui->stackedWidget->setCurrentWidget(ui->homePage);
+                statusBar()->showMessage(QStringLiteral("主机已结束联机对局"), 2500);
+            }
+            return;
+        }
+
         if (message.type != MessageType::Move
             || currentMode_ != GameMode::OnlineClient
             || !onlineGameStarted_
@@ -339,8 +399,9 @@ MainWindow::MainWindow(QWidget *parent)
         const int y = message.payload.value(QStringLiteral("y")).toInt(-1);
         const int colorValue = message.payload.value(QStringLiteral("color")).toInt(static_cast<int>(PieceColor::Empty));
         const PieceColor color = static_cast<PieceColor>(colorValue);
-        if (x < 0 || y < 0 || color != PieceColor::Black
-            || controller_->currentPlayer() != PieceColor::Black) {
+        const PieceColor remoteColor = pieceColorForSide(humanSide_ == PlayerSide::Black ? PlayerSide::White : PlayerSide::Black);
+        if (x < 0 || y < 0 || color != remoteColor
+            || controller_->currentPlayer() != remoteColor) {
             return;
         }
 
@@ -349,6 +410,82 @@ MainWindow::MainWindow(QWidget *parent)
         applyingNetworkMove_ = false;
         if (!applied) {
             statusBar()->showMessage(QStringLiteral("收到无效的主机落子，双方状态可能不同步"), 3000);
+        }
+    });
+
+    connect(gameServer_, &GameServer::serverStarted, this, [this](quint16 port) {
+        prepareOnlineHostWaiting();
+        const QString address = gameServer_->localAddress().isEmpty() ? QStringLiteral("127.0.0.1") : gameServer_->localAddress();
+        QMessageBox::information(this,
+                                 QStringLiteral("主机已开启"),
+                                 QStringLiteral("请让客户端输入：%1:%2").arg(address).arg(port));
+        statusBar()->showMessage(QStringLiteral("主机已启动，等待客户端连接"), 3000);
+    });
+
+    connect(gameServer_, &GameServer::serverStopped, this, [this]() {
+        hostPlayerJoined_ = false;
+        setOnlineGameActive(false);
+        remoteAccountName_.clear();
+        remoteAvatarBytes_.clear();
+        statusBar()->showMessage(QStringLiteral("主机已停止"), 2500);
+    });
+
+    connect(gameServer_, &GameServer::serverError, this, [this](const QString &errorText) {
+        setOnlineGameActive(false);
+        statusBar()->showMessage(errorText, 4000);
+        QMessageBox::warning(this, QStringLiteral("主机启动失败"), errorText);
+    });
+
+    connect(gameServer_, &GameServer::clientConnected, this, [this](const QString &playerName, const QByteArray &avatarData) {
+        hostPlayerJoined_ = true;
+        onlineGameStarted_ = true;
+        remoteAccountName_ = playerName.trimmed().isEmpty() ? QStringLiteral("客户端") : playerName.trimmed();
+        remoteAvatarBytes_ = avatarData;
+        beginActiveMatchRecord();
+        controller_->resetGame();
+        setOnlineGameActive(true);
+        syncBoardFromController();
+        refreshGameInfo();
+        statusBar()->showMessage(QStringLiteral("%1 已连接，对局开始").arg(remoteAccountName_), 3000);
+        playOnlineMatchIntro();
+    });
+
+    connect(gameServer_, &GameServer::clientDisconnected, this, [this](const QString &playerName) {
+        hostPlayerJoined_ = false;
+        setOnlineGameActive(false);
+        if (matchIntroOverlay_ != nullptr) {
+            matchIntroOverlay_->close();
+        }
+        remoteAccountName_.clear();
+        remoteAvatarBytes_.clear();
+        refreshGameInfo();
+        statusBar()->showMessage(QStringLiteral("%1 已断开，等待客户端重新加入").arg(playerName), 3000);
+    });
+
+    connect(gameServer_, &GameServer::clientMessageReceived, this, [this](QTcpSocket *clientSocket, const NetworkMessage &message) {
+        if (message.type != MessageType::Move
+            || currentMode_ != GameMode::OnlineHost
+            || !hostMayPlaceStone()) {
+            return;
+        }
+
+        const int x = message.payload.value(QStringLiteral("x")).toInt(-1);
+        const int y = message.payload.value(QStringLiteral("y")).toInt(-1);
+        const int colorValue = message.payload.value(QStringLiteral("color")).toInt(static_cast<int>(PieceColor::Empty));
+        const PieceColor color = static_cast<PieceColor>(colorValue);
+        const PieceColor remoteColor = pieceColorForSide(humanSide_ == PlayerSide::Black ? PlayerSide::White : PlayerSide::Black);
+        if (x < 0 || y < 0 || color != remoteColor
+            || controller_->currentPlayer() != remoteColor) {
+            return;
+        }
+
+        applyingNetworkMove_ = true;
+        const bool applied = controller_->placeStone(x, y);
+        applyingNetworkMove_ = false;
+        if (applied) {
+            gameServer_->broadcastMessage(message, clientSocket);
+        } else {
+            statusBar()->showMessage(QStringLiteral("收到无效的客户端落子，双方状态可能不同步"), 3000);
         }
     });
 
@@ -373,11 +510,9 @@ QString MainWindow::modeText(GameMode mode) const
         return QStringLiteral("本地对战");
     case GameMode::HumanVsAI:
         return QStringLiteral("人机对战");
+    case GameMode::OnlineHost:
+        return QStringLiteral("联机主机");
     case GameMode::OnlineClient:
-        if (onlineDebugMode_) {
-            return onlineDebugIsHost_ ? QStringLiteral("联机调试（模拟主机）")
-                                      : QStringLiteral("联机调试（模拟客户端）");
-        }
         return QStringLiteral("联机客户端");
     case GameMode::Replay:
         return QStringLiteral("复盘模式");
@@ -422,14 +557,16 @@ void MainWindow::startGame(GameMode mode, PlayerSide humanSide, AIDifficulty aiD
     controller_->setGameMode(mode);
     controller_->setHumanSide(humanSide);
     configureTurnActors(mode, humanSide, aiDifficulty);
-    const bool onlineMode = mode == GameMode::OnlineClient;
-    if (!onlineMode) {
+    const bool onlineMode = mode == GameMode::OnlineHost || mode == GameMode::OnlineClient;
+    const bool waitingForClient = mode == GameMode::OnlineHost && !onlineGameStarted_;
+    if (!waitingForClient) {
         beginActiveMatchRecord();
     }
     controller_->resetGame();
     ui->stackedWidget->setCurrentWidget(ui->gamePage);
     if (!onlineMode) {
         onlineGameStarted_ = false;
+        hostPlayerJoined_ = false;
     }
     updateBoardMoveInput();
 
@@ -444,6 +581,26 @@ void MainWindow::setOnlineGameActive(bool active)
     updateBoardMoveInput();
 }
 
+bool MainWindow::hostMayPlaceStone() const
+{
+    return currentMode_ == GameMode::OnlineHost
+        && hostPlayerJoined_
+        && onlineGameStarted_
+        && gameServer_ != nullptr
+        && gameServer_->hasReadyClient();
+}
+
+void MainWindow::prepareOnlineHostWaiting()
+{
+    hostPlayerJoined_ = false;
+    onlineGameStarted_ = false;
+    startGame(GameMode::OnlineHost, humanSide_);
+    updateBoardMoveInput();
+    if (ui != nullptr && ui->statusLabel != nullptr) {
+        ui->statusLabel->setText(QStringLiteral("状态：等待客户端加入，主机暂时不能落子"));
+    }
+}
+
 void MainWindow::updateBoardMoveInput()
 {
     if (boardWidget_ == nullptr) {
@@ -451,16 +608,14 @@ void MainWindow::updateBoardMoveInput()
     }
 
     bool allowInput = true;
-    if (currentMode_ == GameMode::OnlineClient) {
-        allowInput = onlineGameStarted_ && !onlineDebugWaiting_;
-        if (!onlineDebugMode_) {
-            allowInput = allowInput
-                && networkManager_ != nullptr
-                && networkManager_->isConnected();
-        } else if (controller_ != nullptr) {
-            allowInput = allowInput
-                && controller_->currentPlayer() == pieceColorForSide(humanSide_);
-        }
+    if (currentMode_ == GameMode::OnlineHost) {
+        allowInput = hostMayPlaceStone() && controller_->currentPlayer() == pieceColorForSide(humanSide_);
+    } else if (currentMode_ == GameMode::OnlineClient) {
+        allowInput = onlineGameStarted_
+            && networkManager_ != nullptr
+            && networkManager_->isConnected()
+            && controller_ != nullptr
+            && controller_->currentPlayer() == pieceColorForSide(humanSide_);
     }
 
     boardWidget_->setMoveInputEnabled(allowInput);
@@ -478,7 +633,6 @@ void MainWindow::setupHomePage()
     ui->historyButton->setText(QStringLiteral("人机对战"));
     ui->historyRecordButton->setText(QStringLiteral("历史记录"));
     ui->networkButton->setText(QStringLiteral("联机对战"));
-    ui->onlineDebugButton->setText(QStringLiteral("联机调试"));
     ui->settingsButton->setText(QStringLiteral("设置"));
     ui->exitButton->setText(QStringLiteral("退出游戏"));
 
@@ -501,13 +655,36 @@ void MainWindow::setupHomePage()
     });
 
     connect(ui->networkButton, &QPushButton::clicked, this, [this]() {
-        onlineDebugMode_ = false;
-        onlineDebugIsHost_ = true;
-        onlineDebugWaiting_ = false;
+        bool isHost = true;
+        PlayerSide hostSide = PlayerSide::Black;
+        if (!showOnlineRoleDialog(this, &isHost, &hostSide)) {
+            return;
+        }
+
+        if (isHost) {
+            if (networkManager_ != nullptr && networkManager_->isConnected()) {
+                networkManager_->disconnectFromHost();
+            }
+
+            humanSide_ = hostSide;
+            gameServer_->setHostSide(hostSide);
+            gameServer_->setHostName(localAccountName_);
+            gameServer_->setHostAvatarData(UserProfile::encodeAvatarForNetwork(localAvatarPath_));
+            gameServer_->setBoardSize(controller_->boardSize());
+            if (!gameServer_->startListening(gomoku_config::kDefaultPort)) {
+                statusBar()->showMessage(QStringLiteral("主机启动失败"), 3000);
+            }
+            return;
+        }
+
+        if (gameServer_ != nullptr && gameServer_->isListening()) {
+            gameServer_->stopListening();
+        }
+
         bool accepted = false;
         const QString input = QInputDialog::getText(this,
-                                                    QStringLiteral("联机对战"),
-                                                    QStringLiteral("请输入主机地址，格式可为 192.168.1.8 或 192.168.1.8:7777"),
+                                                    QStringLiteral("连接主机"),
+                                                    QStringLiteral("请输入主机地址，格式可为 192.168.1.8 或 192.168.1.8:5000"),
                                                     QLineEdit::Normal,
                                                     QString(),
                                                     &accepted);
@@ -524,20 +701,12 @@ void MainWindow::setupHomePage()
             return;
         }
 
+        currentMode_ = GameMode::OnlineClient;
+        hostPlayerJoined_ = false;
         setOnlineGameActive(false);
         if (networkManager_->connectToHost(host, port)) {
             statusBar()->showMessage(QStringLiteral("正在连接 %1:%2").arg(host).arg(port), 2000);
         }
-    });
-
-    connect(ui->onlineDebugButton, &QPushButton::clicked, this, [this]() {
-        if (networkManager_ != nullptr && networkManager_->isConnected()) {
-            QMessageBox::warning(this,
-                                 QStringLiteral("无法调试"),
-                                 QStringLiteral("请先退出当前真实联机，再进入调试模式"));
-            return;
-        }
-        showOnlineDebugDialog();
     });
 
     connect(ui->settingsButton, &QPushButton::clicked, this, [this]() {
@@ -545,6 +714,8 @@ void MainWindow::setupHomePage()
         if (profileChanged) {
             networkManager_->setPlayerName(localAccountName_);
             networkManager_->setAvatarData(UserProfile::encodeAvatarForNetwork(localAvatarPath_));
+            gameServer_->setHostName(localAccountName_);
+            gameServer_->setHostAvatarData(UserProfile::encodeAvatarForNetwork(localAvatarPath_));
             refreshGameInfo();
         }
     });
@@ -560,9 +731,12 @@ void MainWindow::setupGamePage()
         if (matchIntroOverlay_ != nullptr) {
             matchIntroOverlay_->close();
         }
-        onlineDebugMode_ = false;
-        onlineDebugIsHost_ = true;
-        onlineDebugWaiting_ = false;
+        if (gameServer_ != nullptr && gameServer_->isListening()) {
+            gameServer_->stopListening();
+        }
+        if (networkManager_ != nullptr && networkManager_->isConnected()) {
+            networkManager_->disconnectFromHost();
+        }
         ui->stackedWidget->setCurrentWidget(ui->homePage);
         statusBar()->showMessage(QStringLiteral("返回首页"), 2000);
     });
@@ -621,7 +795,8 @@ void MainWindow::refreshGameInfo()
     }
 
     const PieceColor currentColor = controller_->currentPlayer();
-    const bool onlineMode = controller_->gameMode() == GameMode::OnlineClient;
+    const bool onlineMode = controller_->gameMode() == GameMode::OnlineHost
+        || controller_->gameMode() == GameMode::OnlineClient;
     if (onlineMode) {
         ui->modeLabel->setText(QStringLiteral("当前模式：%1 | 账号：%2 | 你是%3")
                                    .arg(modeText(controller_->gameMode()), localAccountName_, sideName(humanSide_)));
@@ -651,21 +826,6 @@ void MainWindow::refreshGameInfo()
         ui->playerIconLabel->setPixmap(UserProfile::loadAvatarPixmap(avatarPath, ui->playerIconLabel->size()));
     }
 
-    if (debugHostButton_ != nullptr && debugClientButton_ != nullptr) {
-        const bool showDebugControls = onlineDebugMode_ && controller_->gameMode() == GameMode::OnlineClient;
-        debugHostButton_->setVisible(showDebugControls);
-        debugClientButton_->setVisible(showDebugControls);
-        if (showDebugControls) {
-            debugHostButton_->setText(onlineDebugIsHost_ ? QStringLiteral("当前：主机") : QStringLiteral("切换主机"));
-            debugClientButton_->setText(onlineDebugIsHost_ ? QStringLiteral("切换客户端") : QStringLiteral("当前：客户端"));
-            const QString activeStyle = QStringLiteral(
-                "background: #1f3a2b; color: white; border-radius: 12px; padding: 8px 14px;");
-            const QString inactiveStyle = QStringLiteral(
-                "background: rgba(31,58,43,0.08); color: #1f3a2b; border-radius: 12px; padding: 8px 14px;");
-            debugHostButton_->setStyleSheet(onlineDebugIsHost_ ? activeStyle : inactiveStyle);
-            debugClientButton_->setStyleSheet(onlineDebugIsHost_ ? inactiveStyle : activeStyle);
-        }
-    }
 }
 
 QString MainWindow::displayNameForSide(PlayerSide side) const
@@ -676,11 +836,12 @@ QString MainWindow::displayNameForSide(PlayerSide side) const
             return localAccountName_.isEmpty() ? QStringLiteral("玩家") : localAccountName_;
         }
         return QStringLiteral("AI玩家");
+    case GameMode::OnlineHost:
     case GameMode::OnlineClient:
         if (side == humanSide_) {
             return localAccountName_.isEmpty() ? QStringLiteral("玩家") : localAccountName_;
         }
-        return remoteAccountName_.isEmpty() ? QStringLiteral("主机") : remoteAccountName_;
+        return remoteAccountName_.isEmpty() ? QStringLiteral("对方玩家") : remoteAccountName_;
     case GameMode::LocalTwoPlayer:
     case GameMode::Replay:
     default:
@@ -919,6 +1080,20 @@ void MainWindow::syncBoardFromController()
     refreshGameInfo();
 }
 
+void MainWindow::restartOnlineGame()
+{
+    if (controller_ == nullptr) {
+        return;
+    }
+
+    beginActiveMatchRecord();
+    controller_->resetGame();
+    setOnlineGameActive(true);
+    ui->stackedWidget->setCurrentWidget(ui->gamePage);
+    syncBoardFromController();
+    refreshGameInfo();
+}
+
 void MainWindow::showGameOverPrompt(const QString &title, const QString &message)
 {
     if (controller_ == nullptr) {
@@ -931,6 +1106,36 @@ void MainWindow::showGameOverPrompt(const QString &title, const QString &message
     statusBar()->showMessage(QStringLiteral("%1: %2").arg(title, message), 4000);
 
     if (currentMode_ == GameMode::OnlineClient) {
+        return;
+    }
+
+    if (currentMode_ == GameMode::OnlineHost) {
+        QMessageBox box(this);
+        box.setIcon(QMessageBox::Question);
+        box.setWindowTitle(title);
+        box.setText(message);
+        box.setInformativeText(QStringLiteral("是否再来一局？"));
+        QPushButton *yesButton = box.addButton(QStringLiteral("是"), QMessageBox::AcceptRole);
+        box.addButton(QStringLiteral("否"), QMessageBox::RejectRole);
+        box.exec();
+
+        const bool restart = box.clickedButton() == yesButton;
+        NetworkMessage decision;
+        decision.type = MessageType::RestartRequest;
+        decision.payload.insert(QStringLiteral("accepted"), restart);
+        if (gameServer_ != nullptr) {
+            gameServer_->broadcastMessage(decision);
+        }
+
+        if (restart) {
+            restartOnlineGame();
+            statusBar()->showMessage(QStringLiteral("已开始下一局"), 2000);
+            return;
+        }
+
+        setOnlineGameActive(false);
+        ui->stackedWidget->setCurrentWidget(ui->homePage);
+        statusBar()->showMessage(QStringLiteral("已结束联机对局"), 2500);
         return;
     }
 

@@ -7,7 +7,8 @@ enum class MessageType
 {
     Login,
     GameStart,
-    Move
+    Move,
+    RestartRequest
 };
 
 struct NetworkMessage

@@ -29,8 +29,10 @@ set(PROJECT_SOURCES
         src/data/database_manager.h
         src/data/models.h
         src/network/protocol.cpp
+        src/network/game_server.cpp
         src/network/network_manager.cpp
         src/network/protocol.h
+        src/network/game_server.h
         src/network/network_manager.h
         src/profile/user_profile.cpp
         src/profile/user_profile.h
@@ -44,7 +46,6 @@ set(PROJECT_SOURCES
         src/ui/chessboard_widget.h
         src/ui/match_intro_overlay.cpp
         src/ui/match_intro_overlay.h
-        src/ui/mainwindow_online_debug.cpp
         src/ui/mainwindow.cpp
         src/ui/mainwindow.h
         src/ui/mainwindow.ui

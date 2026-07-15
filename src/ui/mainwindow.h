@@ -20,7 +20,7 @@ class GameController;
 class MatchIntroOverlay;
 class RecordManager;
 class NetworkManager;
-class QPushButton;
+class GameServer;
 class QTcpSocket;
 struct IntroPlayerInfo;
 
@@ -36,6 +36,8 @@ private:
     void startGame(GameMode mode, PlayerSide humanSide = PlayerSide::Black, AIDifficulty aiDifficulty = AIDifficulty::Normal);
     void setOnlineGameActive(bool active);
     void updateBoardMoveInput();
+    bool hostMayPlaceStone() const;
+    void prepareOnlineHostWaiting();
     void configureTurnActors(GameMode mode, PlayerSide humanSide, AIDifficulty aiDifficulty);
     void setupHomePage();
     void setupGamePage();
@@ -46,17 +48,13 @@ private:
     void saveCurrentGameResult(PieceColor winner);
     QString displayNameForSide(PlayerSide side) const;
     void showHistoryDialog();
-    void showOnlineDebugDialog();
-    void startOnlineDebugSession(bool isHost, const QString &remoteName);
-    void switchOnlineDebugRole(bool isHost);
-    void scheduleOnlineDebugRemoteMove();
-    bool chooseDebugRemoteMove(BoardPosition *position) const;
     void playMatchIntro(const IntroPlayerInfo &leftPlayer,
                         const IntroPlayerInfo &rightPlayer,
                         std::function<void()> finished = {});
     void playAiMatchIntro();
     void playOnlineMatchIntro(std::function<void()> finished = {});
     void playWinAnimation(PieceColor winner, std::function<void()> finished = {});
+    void restartOnlineGame();
     void showGameOverPrompt(const QString &title, const QString &message);
     QString modeText(GameMode mode) const;
     QString playerText(PieceColor color) const;
@@ -66,6 +64,7 @@ private:
     GameController *controller_ = nullptr;
     RecordManager *recordManager_ = nullptr;
     NetworkManager *networkManager_ = nullptr;
+    GameServer *gameServer_ = nullptr;
     MatchIntroOverlay *matchIntroOverlay_ = nullptr;
     GameMode currentMode_ = GameMode::LocalTwoPlayer;
     PlayerSide humanSide_ = PlayerSide::Black;
@@ -77,12 +76,7 @@ private:
     bool currentGameResultRecorded_ = false;
     bool applyingNetworkMove_ = false;
     bool onlineGameStarted_ = false;
-    bool onlineDebugMode_ = false;
-    bool onlineDebugIsHost_ = true;
-    bool onlineDebugWaiting_ = false;
-    quint64 onlineDebugSessionToken_ = 0;
-    QPushButton *debugHostButton_ = nullptr;
-    QPushButton *debugClientButton_ = nullptr;
+    bool hostPlayerJoined_ = false;
 };
 
 #endif

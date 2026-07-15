@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
@@ -158,24 +158,6 @@ font-weight: 400;</string>
           </property>
           <property name="text">
            <string>联机对战</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="onlineDebugButton">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>48</height>
-           </size>
-          </property>
-          <property name="styleSheet">
-           <string notr="true">font-family: "华文行楷";
-font-size: 18px;
-font-weight: 400;</string>
-          </property>
-          <property name="text">
-           <string>联机调试</string>
           </property>
          </widget>
         </item>
@@ -537,51 +519,6 @@ color: #1f3a2b;</string>
                <string>状态：等待落子</string>
               </property>
              </widget>
-            </item>
-            <item>
-             <layout class="QHBoxLayout" name="debugRoleButtonLayout">
-              <property name="spacing">
-               <number>10</number>
-              </property>
-              <property name="leftMargin">
-               <number>0</number>
-              </property>
-              <property name="topMargin">
-               <number>0</number>
-              </property>
-              <property name="rightMargin">
-               <number>0</number>
-              </property>
-              <property name="bottomMargin">
-               <number>0</number>
-              </property>
-              <item>
-               <widget class="QPushButton" name="debugHostButton">
-                <property name="minimumSize">
-                 <size>
-                  <width>0</width>
-                  <height>38</height>
-                 </size>
-                </property>
-                <property name="text">
-                 <string>切换主机</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="debugClientButton">
-                <property name="minimumSize">
-                 <size>
-                  <width>0</width>
-                  <height>38</height>
-                 </size>
-                </property>
-                <property name="text">
-                 <string>切换客户端</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
             </item>
             <item>
               <spacer name="infoBottomSpacer">
